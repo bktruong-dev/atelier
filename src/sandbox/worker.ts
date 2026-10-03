@@ -71,6 +71,27 @@ function view(radius: unknown) {
 }
 
 let startAngle: [number, number] | null = null;
+
+// dial("name", value, min, max, step?) in code: returns the dial's value, and
+// asks the page to create the slider if it doesn't exist yet.
+let dialValues: Record<string, number | string> = {};
+let dialRequests: { name: string; value: number; min: number; max: number; step: number }[] = [];
+function dial(name: unknown, value: unknown = 1, min?: unknown, max?: unknown, step?: unknown): number {
+  if (typeof name !== "string" || badDialName(name)) throw new TypeError(`dial needs a name you could use as a variable, like dial("speed", 1, 0, 5)`);
+  const current = dialValues[name];
+  if (typeof current === "number") return current;
+  const v = Number(value);
+  if (!finite(v)) throw new TypeError(`dial "${name}": the starting value must be a number`);
+  let lo = min === undefined ? Math.min(0, v) : Number(min);
+  let hi = max === undefined ? Math.max(v * 2, lo + 1) : Number(max);
+  if (!finite(lo) || !finite(hi)) throw new TypeError(`dial "${name}": min and max must be numbers`);
+  if (lo > hi) [lo, hi] = [hi, lo];
+  if (lo === hi) hi = lo + 1;
+  let st = step === undefined ? (hi - lo) / 1000 : Number(step);
+  if (!finite(st) || st <= 0) st = (hi - lo) / 1000;
+  if (!dialRequests.some((r) => r.name === name) && dialRequests.length < 32) dialRequests.push({ name, value: v, min: lo, max: hi, step: st });
+  return Math.min(hi, Math.max(lo, v));
+}
 /** The starting camera angle, in degrees: turn around the vertical, then tilt. */
 function orbit(yawDeg: unknown, pitchDeg: unknown = 0) {
   const y = Number(yawDeg), p = Number(pitchDeg);
@@ -167,7 +188,7 @@ Math.random = random;
 
 const MATH = Object.getOwnPropertyNames(Math).filter((k) => k !== "random");
 const API: Record<string, unknown> = {
-  duration: setDuration, view, orbit, dot, line, path, color, hsl, pointSize, strokeWidth,
+  duration: setDuration, view, orbit, dial, dot, line, path, color, hsl, pointSize, strokeWidth,
   lerp, clamp, range, random, TAU: Math.PI * 2, PHI: (1 + Math.sqrt(5)) / 2,
 };
 for (const k of MATH) API[k] = (Math as unknown as Record<string, unknown>)[k];
@@ -241,6 +262,8 @@ listen("message", (e: MessageEvent) => {
   duration = DEFAULT_DURATION;
   viewRadius = DEFAULT_VIEW;
   startAngle = null;
+  dialValues = dials;
+  dialRequests = [];
   seed = 0x9e3779b9;
 
   let error = compileError;
@@ -254,7 +277,7 @@ listen("message", (e: MessageEvent) => {
 
   const out = buf.slice(0, len);
   send(
-    { kind: "frame", id: m.id, buf: out, duration, view: viewRadius, orbit: startAngle, error },
+    { kind: "frame", id: m.id, buf: out, duration, view: viewRadius, orbit: startAngle, dials: dialRequests, error },
     [out.buffer],
   );
 });

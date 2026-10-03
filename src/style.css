@@ -524,3 +524,16 @@ button.icon#help { font: italic 1.15rem var(--serif); }
   .guide-steps { grid-template-columns: 1fr; }
   .guide-keys { grid-template-columns: 1fr 1fr; }
 }
+
+/* ================= layers ================= */
+.layers { display: flex; flex-direction: column; gap: 0.5rem; }
+.layer { border: 1px solid var(--ink-faint); border-radius: 8px; padding: 0.45rem 0.55rem; background: rgba(12, 13, 16, 0.5); display: flex; flex-direction: column; gap: 0.35rem; }
+.layer.off { opacity: 0.5; }
+.layer-top, .layer-bottom { display: flex; align-items: center; gap: 0.45rem; }
+.layer-eye { width: 1.7rem; height: 1.7rem; padding: 0; border-radius: 50%; color: var(--accent); flex: none; }
+.layer-eye[aria-pressed="false"] { color: var(--ink-dim); }
+.layer-page { flex: 1; min-width: 0; height: 1.75rem; font: italic 1.02rem var(--serif); padding: 0 0.4rem; }
+.layer-time { flex: none; width: 52%; height: 1.65rem; font-size: 0.7rem; padding: 0 0.3rem; }
+.layer-fade { flex: 1; }
+.layer-remove { border: 0; width: 1.6rem; height: 1.6rem; padding: 0; color: var(--ink-dim); font-size: 1rem; flex: none; }
+.layer-remove:hover { color: var(--error); }

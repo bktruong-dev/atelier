@@ -40,10 +40,18 @@ export interface DrawOptions {
   grid: boolean;
   /** A soft bloom under the strokes. Skipped on phones. */
   glow: boolean;
+  /** Other pages drawn underneath, in the same world coordinates. */
+  layers?: { buf: Float32Array; opacity: number }[];
 }
 
 export function drawFrame(ctx: CanvasRenderingContext2D, width: number, height: number, frame: Frame, cam: Camera, opts: DrawOptions) {
   ctx.clearRect(0, 0, width, height);
+  for (const layer of opts.layers ?? []) {
+    ctx.save();
+    ctx.globalAlpha = layer.opacity;
+    drawPattern(ctx, width, height, { buf: layer.buf, view: frame.view }, cam);
+    ctx.restore();
+  }
   drawPattern(ctx, width, height, frame, cam);
 
   if (opts.glow) addGlow(ctx, width, height);

@@ -22,11 +22,23 @@ export interface Dial {
   dir: 1 | -1;
 }
 
+/** Another page drawn underneath this one. */
+export interface Layer {
+  id: string;
+  pageId: string;
+  visible: boolean;
+  /** "main": the layer follows the timeline. Otherwise the name of a dial on
+   *  this page whose value is used as the layer's t, so it moves on its own. */
+  time: string;
+  opacity: number;
+}
+
 export interface Page {
   id: string;
   name: string;
   code: string;
   dials: Dial[];
+  layers?: Layer[];
   updated: number;
 }
 
@@ -119,6 +131,23 @@ function cleanPage(p: unknown): Page | null {
     name: typeof o.name === "string" ? o.name.slice(0, 80) : "Untitled",
     code: o.code,
     dials: cleanDials(o.dials),
+    layers: cleanLayers(o.layers),
     updated: num(o.updated, 0),
   };
+}
+
+export function cleanLayers(list: unknown): Layer[] {
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 12).flatMap((l) => {
+    if (!l || typeof l !== "object") return [];
+    const o = l as Record<string, unknown>;
+    if (typeof o.pageId !== "string") return [];
+    return [{
+      id: typeof o.id === "string" ? o.id : newId(),
+      pageId: o.pageId,
+      visible: o.visible !== false,
+      time: typeof o.time === "string" ? o.time.slice(0, 32) : "main",
+      opacity: Math.min(1, Math.max(0.05, num(o.opacity, 1))),
+    }];
+  });
 }

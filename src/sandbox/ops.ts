@@ -21,7 +21,7 @@ export const DEFAULT_VIEW = 2;
 
 /** Everything pattern code can call. Dial names may not reuse these. */
 export const API_NAMES = [
-  "duration", "view", "orbit", "dot", "line", "path", "color", "hsl", "pointSize", "strokeWidth",
+  "duration", "view", "orbit", "dial", "dot", "line", "path", "color", "hsl", "pointSize", "strokeWidth",
   "lerp", "clamp", "range", "random", "TAU", "PHI",
   ...Object.getOwnPropertyNames(Math).filter((k) => k !== "random"),
 ];

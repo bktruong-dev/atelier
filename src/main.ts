@@ -1,6 +1,7 @@
 import "./style.css";
 import { setupCanvas } from "./canvas";
 import { Clock } from "./clock";
+import { LayerSet } from "./layers";
 import { loadNotebook, makeColorDial, makeDial, newId, saveNotebook, type Dial, type Page } from "./notebook";
 import { BLANK, REFERENCES, type Template } from "./presets";
 import { drawFrame, fitCamera, hasDepth, nearestPoint, newCamera, scaleOf, type Frame } from "./render";
@@ -10,6 +11,7 @@ import { decodeShare, encodeShare } from "./share";
 import { applyAccent, DPR_CAP, loadSettings, saveSettings } from "./settings";
 import { showIntro } from "./ui/intro";
 import { createSettingsPanel } from "./ui/settings-panel";
+import { renderLayers } from "./ui/layers-panel";
 import { attachCamera } from "./ui/camera";
 import { renderDials } from "./ui/dials";
 import { createEditor } from "./ui/editor";
@@ -59,6 +61,14 @@ const clock = new Clock(DEFAULT_DURATION);
 const cam = newCamera();
 const { ctx, view, resize } = setupCanvas(canvas, () => (needsDraw = true), () => DPR_CAP[settings.quality]);
 const sandbox = new Sandbox(onFrame, onTimeout);
+const layerSet = new LayerSet(
+  () => (needsDraw = true),
+  (pageId, requests) => {
+    const p = findPage(pageId);
+    if (p) addRequestedDials(p, requests);
+  },
+);
+const findPage = (id: string) => refPages.find((p) => p.id === id) ?? pages.find((p) => p.id === id);
 
 const editor = createEditor($<HTMLTextAreaElement>("code"), $("code-mirror"), $("gutter"), {
   onChange(code) {
@@ -103,6 +113,7 @@ function open(id: string) {
   clock.reset();
   clock.play(1);
   showError(null);
+  refreshLayers();
   rebuildDials();
   recompile();
   renderTabs();
@@ -252,6 +263,7 @@ function rebuildDials(openName: string | null = null) {
     },
     openName,
   );
+  refreshLayers(); // the layers' "t = dial" choices follow this page's dials
 }
 
 $("add-color").addEventListener("click", () => {
@@ -308,7 +320,22 @@ function animateDials(dt: number) {
 
 // ---- sandbox replies -----------------------------------------------------
 
+/** dial("name", …) in code makes the slider if the page doesn't have it yet. */
+function addRequestedDials(p: Page, requests: FrameResult["dialRequests"]) {
+  const fresh = requests.filter((r) => !p.dials.some((d) => d.name === r.name));
+  if (!fresh.length) return;
+  for (const r of fresh) p.dials.push(makeDial(r.name, r.value, r.min, r.max, r.step));
+  if (p === page) {
+    rebuildDials();
+    recompile();
+    editor.highlight();
+    refreshLayers();
+  }
+  touch();
+}
+
 function onFrame(r: FrameResult) {
+  if (r.dialRequests.length) addRequestedDials(page, r.dialRequests);
   if (r.error) {
     showError(r.error);
     return; // keep the last good picture
@@ -514,6 +541,10 @@ function tick(now: number) {
     needsFrame = true;
     touch();
   }
+  layerSet.tick(page.layers ?? [], findPage, clock.t, (name) => {
+    const d = page.dials.find((o) => o.name === name);
+    return d && d.kind !== "color" ? d.value : undefined;
+  });
   if (clock.t !== lastT) needsFrame = true;
   if (needsFrame) {
     sandbox.request(clock.t, clock.duration, dialValues());
@@ -522,6 +553,7 @@ function tick(now: number) {
   }
   if (needsDraw && frame) {
     drawFrame(ctx, view.width, view.height, frame, cam, {
+      layers: layerSet.frames(page.layers ?? []),
       grid: settings.grid && !cinema,
       glow: settings.glow && !view.light,
     });
@@ -530,6 +562,24 @@ function tick(now: number) {
   syncTimeline();
   requestAnimationFrame(tick);
 }
+
+// ---- layers: other pages drawn underneath this one
+function refreshLayers() {
+  layerSet.sync(page.layers ?? []);
+  const others = [...refPages, ...pages].filter((p) => p !== page);
+  renderLayers($("layers"), page, others, (structural) => {
+    if (structural) layerSet.sync(page.layers ?? []);
+    needsDraw = true;
+    touch();
+  });
+}
+$("add-layer").addEventListener("click", () => {
+  const others = [...refPages, ...pages].filter((p) => p !== page);
+  if (!others.length) return;
+  page.layers = [...(page.layers ?? []), { id: newId(), pageId: others[0].id, visible: true, time: "main", opacity: 0.8 }];
+  refreshLayers();
+  touch();
+});
 
 // ---- welcome guide: once on a first visit, and any time from the ? button
 const guide = $<HTMLDialogElement>("guide");

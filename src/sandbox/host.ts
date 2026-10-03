@@ -6,6 +6,8 @@ export interface FrameResult {
   view: number;
   /** Starting camera angle [yaw, pitch] in radians, if the pattern asked for one. */
   orbit: [number, number] | null;
+  /** dial() calls for dials the page doesn't have yet. */
+  dialRequests: { name: string; value: number; min: number; max: number; step: number }[];
   error: { message: string; line: number | null } | null;
 }
 
@@ -49,6 +51,15 @@ export class Sandbox {
     const req = { t, T, values: { ...values } };
     if (this.pending) this.queued = req;
     else this.send(req);
+  }
+
+  /** Stop the worker for good (a layer that was removed). */
+  dispose() {
+    if (this.pending) clearTimeout(this.pending.timer);
+    this.pending = null;
+    this.queued = null;
+    this.halted = true;
+    this.worker.terminate();
   }
 
   private spawn() {
@@ -106,6 +117,11 @@ function clean(r: Record<string, unknown>): FrameResult | null {
     buf,
     duration: r.duration === Infinity ? Infinity : isNum(r.duration) && r.duration > 0 ? r.duration : DEFAULT_DURATION,
     view: isNum(r.view) && r.view > 0 ? r.view : DEFAULT_VIEW,
+    dialRequests: Array.isArray(r.dials)
+      ? (r.dials as Record<string, unknown>[]).slice(0, 32).filter(
+          (d) => d && typeof d.name === "string" && d.name.length <= 24 && isNum(d.value) && isNum(d.min) && isNum(d.max) && isNum(d.step) && (d.step as number) > 0,
+        ).map((d) => ({ name: d.name as string, value: d.value as number, min: d.min as number, max: d.max as number, step: d.step as number }))
+      : [],
     orbit: Array.isArray(r.orbit) && isNum(r.orbit[0]) && isNum(r.orbit[1]) ? [r.orbit[0], r.orbit[1]] : null,
     error,
   };

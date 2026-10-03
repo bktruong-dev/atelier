@@ -69,9 +69,17 @@
           <div id="dials" class="dials"></div>
         </section>
 
+        <section class="card">
+          <div class="section-head">
+            <h2><span class="num">II.</span> Layers</h2>
+            <button type="button" id="add-layer" class="small" title="Draw another page underneath this one">+ layer</button>
+          </div>
+          <div id="layers" class="layers"></div>
+        </section>
+
         <section class="card code">
           <div class="section-head">
-            <h2><span class="num">II.</span> Code</h2>
+            <h2><span class="num">III.</span> Code</h2>
             <span class="hint">runs as you type · Ctrl+Enter</span>
           </div>
           <div class="editor">
@@ -93,6 +101,7 @@
               <dt><code>path(points, closed?)</code></dt><dd>a curve through <code>[[x, y, z?], …]</code></dd>
               <dt><code>color(c)</code></dt><dd><code>"#86a8ff"</code>, <code>"ink"</code>, <code>"accent"</code>, <code>hsl(h, s, l, a?)</code> or <code>r, g, b, a?</code></dd>
               <dt><code>pointSize(px)</code>, <code>strokeWidth(px)</code></dt><dd>sizes in screen pixels</dd>
+              <dt><code>dial(name, value, min, max, step?)</code></dt><dd>makes a slider from code (if it doesn't exist yet) and returns its value</dd>
               <dt><code>orbit(yaw, pitch)</code></dt><dd>starting camera angle in degrees, for 3D</dd>
               <dt>Math</dt><dd><code>sin cos sqrt PI …</code> without <code>Math.</code>, plus <code>TAU PHI lerp clamp range random</code> (seeded, so it is the same every frame)</dd>
             </dl>
