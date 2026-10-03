@@ -5,13 +5,19 @@ export class Clock {
   direction: 1 | -1 = 1;
   playing = false;
   loop = false;
+  /** Endless time: never stop at the end, whatever the duration says. */
+  endless = false;
+
+  get unbounded() {
+    return this.endless || !Number.isFinite(this.duration);
+  }
 
   constructor(public duration: number) {}
 
   tick(dtSeconds: number): void {
     if (!this.playing) return;
     this.t += dtSeconds * this.speed * this.direction;
-    if (!Number.isFinite(this.duration)) {
+    if (this.unbounded) {
       // an endless pattern: time runs on forever, and only stops at 0 going backwards
       if (this.t <= 0) {
         this.t = 0;
@@ -31,8 +37,8 @@ export class Clock {
   play(direction: 1 | -1 = 1): void {
     this.direction = direction;
     // Playing from an end restarts from the other end.
-    if (direction === 1 && this.t >= this.duration) this.t = 0;
-    if (direction === -1 && this.t <= 0 && Number.isFinite(this.duration)) this.t = this.duration;
+    if (direction === 1 && this.t >= this.duration && !this.unbounded) this.t = 0;
+    if (direction === -1 && this.t <= 0 && !this.unbounded) this.t = this.duration;
     this.playing = true;
   }
 
@@ -41,7 +47,7 @@ export class Clock {
   }
 
   seek(t: number): void {
-    this.t = Math.min(this.duration, Math.max(0, t));
+    this.t = Math.max(0, this.unbounded ? t : Math.min(this.duration, t));
   }
 
   reset(): void {

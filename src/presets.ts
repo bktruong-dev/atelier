@@ -98,6 +98,16 @@ if (steps) dot(...b[steps - 1]);
 
 export const REFERENCES: Template[] = [REFERENCE, LORENZ];
 
+/** A truly empty page, for "Blank new pages" in settings. */
+export const EMPTY: Template = {
+  name: "Untitled",
+  dials: [],
+  code: `// A blank canvas. t is the time in seconds.
+// Try: dot(cos(t), sin(t));
+
+`,
+};
+
 export const BLANK: Template = {
   name: "Untitled",
   dials: [makeDial("k", 5, 1, 12, 1)],

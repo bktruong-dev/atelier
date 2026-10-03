@@ -15,6 +15,8 @@ export function createSettingsPanel(
     ["coords", "Cursor coordinates", "x, y under the cursor"],
     ["smooth", "Smooth camera", "eased zoom, gliding drags"],
     ["intro", "Opening quote", "a line on arrival"],
+    ["endless", "Endless time", "the timeline never stops; t counts on forever"],
+    ["blankPages", "Blank new pages", "+ opens an empty canvas, no starter code"],
     ["fps", "Performance meter", "frames per second and draw time"],
   ];
 

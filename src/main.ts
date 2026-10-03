@@ -3,7 +3,7 @@ import { setupCanvas } from "./canvas";
 import { Clock } from "./clock";
 import { LayerSet } from "./layers";
 import { loadNotebook, makeColorDial, makeDial, newId, saveNotebook, type Dial, type Page } from "./notebook";
-import { BLANK, REFERENCES, type Template } from "./presets";
+import { BLANK, EMPTY, REFERENCES, type Template } from "./presets";
 import { drawFrame, fitCamera, hasDepth, nearestPoint, newCamera, scaleOf, type Frame } from "./render";
 import { DEFAULT_DURATION } from "./sandbox/ops";
 import { Sandbox, type FrameResult } from "./sandbox/host";
@@ -60,6 +60,7 @@ let applyOrbit = true;
 let syncDials = () => {};
 
 const clock = new Clock(DEFAULT_DURATION);
+clock.endless = settings.endless;
 const cam = newCamera();
 const { ctx, view, resize } = setupCanvas(canvas, () => (needsDraw = true), () => DPR_CAP[settings.quality]);
 const sandbox = new Sandbox(onFrame, onTimeout);
@@ -204,7 +205,7 @@ function renderTabs() {
   plus.textContent = "+";
   plus.title = "New page";
   plus.setAttribute("aria-label", "New page");
-  plus.addEventListener("click", () => addPage(BLANK, nextUntitled()));
+  plus.addEventListener("click", () => addPage(settings.blankPages ? EMPTY : BLANK, nextUntitled()));
   tabs.replaceChildren(...items, plus);
   // keep the active tab visible by scrolling only the strip (never scrollIntoView, which can move the page)
   const act = tabs.querySelector<HTMLElement>(".tab.active");
@@ -499,6 +500,7 @@ createSettingsPanel($("settings-panel"), $("settings-toggle"), settings, (key) =
   if (key === "accent") applyAccent(settings.accent);
   if (key === "background" || key === "bgDim") applyBackground(settings, bgImage);
   if (key === "quality") resize();
+  if (key === "endless") clock.endless = settings.endless;
   if (key === "coords" && !settings.coords) coords.textContent = "";
   if (key === "inspect" && !settings.inspect) hidePin();
   needsDraw = true;

@@ -24,6 +24,10 @@ export interface Settings {
   background: Background;
   /** How much to darken a background image so patterns stay readable (0–0.9). */
   bgDim: number;
+  /** The timeline never stops: t keeps counting past the pattern's duration. */
+  endless: boolean;
+  /** + opens an empty page instead of the starter example. */
+  blankPages: boolean;
 }
 
 export const DEFAULTS: Settings = {
@@ -39,6 +43,8 @@ export const DEFAULTS: Settings = {
   fps: false,
   background: "dots",
   bgDim: 0.45,
+  endless: false,
+  blankPages: false,
 };
 
 export const ACCENTS: Record<Accent, string> = {

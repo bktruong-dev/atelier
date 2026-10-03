@@ -6,7 +6,7 @@ export function createTimeline(root: HTMLElement, clock: Clock, onSeek: () => vo
   // An endless pattern has no last second, so the scrubber spans what you've
   // played so far plus some room, and grows as time runs on.
   let furthest = 0;
-  const span = () => (Number.isFinite(clock.duration) ? clock.duration : Math.max(30, furthest * 1.25));
+  const span = () => (!clock.unbounded ? clock.duration : Math.max(Number.isFinite(clock.duration) ? clock.duration : 30, furthest * 1.25));
 
   const button = (text: string, label: string) => {
     const b = document.createElement("button");
@@ -94,7 +94,7 @@ export function createTimeline(root: HTMLElement, clock: Clock, onSeek: () => vo
     play.textContent = forward ? "⏸" : "▶";
     play.setAttribute("aria-label", forward ? "Pause" : "Play");
     rewind.setAttribute("aria-pressed", String(backward));
-    const endless = !Number.isFinite(clock.duration);
+    const endless = clock.unbounded;
     if (clock.t < 0.001) furthest = 0; // a reset or a new page
     // grow the window in steps, so the thumb doesn't creep backwards every frame
     if (endless && clock.t > span() * 0.9) furthest = clock.t;
