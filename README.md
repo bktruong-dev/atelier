@@ -49,6 +49,10 @@ path(pts);
 
 `random()` is seeded and gives the same sequence every frame, so patterns stay stable while you scrub. Give points a `z`, turn on **Orbit** (or hold Shift and drag) to look at them in 3D.
 
+## Examples
+
+The [`examples/`](examples) folder has patterns to paste into a page: Fourier epicycles, a rewindable Game of Life, strange attractors in 3D, an ink flow field, the planets seen from Earth, a jellyfish and more.
+
 ## Safety
 
 Pattern code, including code arriving in a share link, runs in a Web Worker with no access to the page, network, cookies or storage. A frame that takes longer than 2 seconds stops the worker. The page has a strict Content-Security-Policy; only the worker file is allowed to compile code.
