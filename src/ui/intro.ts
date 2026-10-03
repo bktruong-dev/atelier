@@ -1,6 +1,6 @@
 /**
  * The opening veil: a line about mathematics, art or computing, its letters
- * settling into place while a golden spiral draws itself behind it. Click or
+ * settling into place. Click or
  * press any key to skip. (A cousin of the quote veil on Quaderni.)
  */
 const QUOTES: { q: string; who: string; when: string }[] = [
@@ -16,8 +16,8 @@ const QUOTES: { q: string; who: string; when: string }[] = [
   { q: "Simplicity is prerequisite for reliability.", who: "Edsger Dijkstra", when: "1975" },
 ];
 
-export function showIntro() {
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+export function showIntro(onDone: () => void = () => {}) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return onDone();
 
   let last = -1;
   try {
@@ -38,29 +38,6 @@ export function showIntro() {
   veil.className = "veil";
   veil.setAttribute("role", "dialog");
   veil.setAttribute("aria-label", "Quotation");
-
-  // a golden spiral (quarter arcs whose radii grow by φ) that draws itself in
-  const NS = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(NS, "svg");
-  svg.setAttribute("class", "veil-spiral");
-  svg.setAttribute("viewBox", "-60 -60 120 120");
-  svg.setAttribute("aria-hidden", "true");
-  const phi = (1 + Math.sqrt(5)) / 2;
-  let d = "M 0 0";
-  let r = 0.6, x = 0, y = 0;
-  const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
-  for (let k = 0; k < 11; k++) {
-    const [dx, dy] = dirs[k % 4];
-    const [nx, ny] = dirs[(k + 1) % 4];
-    x += (dx + nx) * r;
-    y += (dy + ny) * r;
-    d += ` A ${r} ${r} 0 0 1 ${x.toFixed(3)} ${y.toFixed(3)}`;
-    r *= phi;
-  }
-  const path = document.createElementNS(NS, "path");
-  path.setAttribute("d", d);
-  path.setAttribute("pathLength", "1");
-  svg.append(path);
 
   const fig = document.createElement("figure");
   const block = document.createElement("blockquote");
@@ -92,7 +69,7 @@ export function showIntro() {
   skip.className = "veil-skip";
   skip.textContent = "click or press any key";
 
-  veil.append(svg, fig, skip);
+  veil.append(fig, skip);
   document.body.append(veil);
 
   let closed = false;
@@ -102,6 +79,7 @@ export function showIntro() {
     veil.classList.add("out");
     removeEventListener("keydown", close, true);
     setTimeout(() => veil.remove(), 900);
+    setTimeout(onDone, 500);
   };
   veil.addEventListener("click", close);
   addEventListener("keydown", close, true);

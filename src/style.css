@@ -148,7 +148,7 @@ input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-o
 .view-tools {
   position: absolute; right: 2rem; top: 0.9rem; display: flex; gap: 0.3rem;
   padding: 0.25rem; background: rgba(12, 13, 16, 0.75); border: 1px solid var(--line); border-radius: 8px;
-  backdrop-filter: blur(6px);
+
 }
 .view-tools button { border-color: transparent; font-size: 0.7rem; height: 1.7rem; padding: 0 0.6rem; }
 .view-tools button:hover { border-color: var(--line); }
@@ -232,8 +232,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* code */
-.code { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.editor { position: relative; flex: 1; min-height: 380px; border: 1px solid var(--line); border-radius: 8px; background: #0b0c0f; overflow: clip; }
+.code { display: flex; flex-direction: column; flex: 1 0 auto; min-height: 0; }
+.editor { position: relative; flex: 1 0 auto; height: max(380px, calc(100dvh - 30rem)); min-height: 0; border: 1px solid var(--line); border-radius: 8px; background: #0b0c0f; overflow: clip; }
 .editor:focus-within { border-color: rgba(var(--accent-rgb), 0.6); }
 .gutter {
   position: absolute; top: 0; bottom: 0; left: 0; width: 2.6rem; margin: 0; padding: 0.8rem 0.55rem 0.8rem 0;
@@ -277,7 +277,7 @@ input[type="range"]::-moz-range-thumb {
   grid-area: time;
   display: flex; align-items: center; gap: 0.55rem;
   padding: 0.65rem 1.5rem 0.8rem; border-top: 1px solid var(--line);
-  font-family: var(--mono); font-size: 0.8rem; background: rgba(12, 13, 16, 0.92); backdrop-filter: blur(8px);
+  font-family: var(--mono); font-size: 0.8rem; background: rgba(12, 13, 16, 0.96);
 }
 .timeline button { min-width: 2.25rem; padding: 0; font-size: 0.85rem; }
 .timeline .scrub { flex: 1; margin: 0 0.4rem; }
@@ -320,7 +320,7 @@ body {
 }
 /* fine paper grain over everything */
 body::after {
-  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: 0.05; mix-blend-mode: overlay;
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; opacity: 0.035;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
@@ -441,7 +441,7 @@ button.icon[aria-expanded="true"] svg { transform: rotate(60deg); }
 .pin-label {
   position: absolute; left: 12px; top: -30px; white-space: pre; font: 0.7rem var(--mono); color: var(--ink);
   background: rgba(12, 13, 16, 0.88); border: 1px solid var(--line); border-radius: 6px; padding: 0.25rem 0.5rem;
-  backdrop-filter: blur(6px);
+
 }
 .pin.left .pin-label { left: auto; right: 12px; }
 
@@ -484,14 +484,43 @@ body.cinema .plate:hover .view-tools { opacity: 1; }
 .veil figcaption::before, .veil figcaption::after { display: none; }
 .veil.on figcaption { opacity: 1; }
 .veil-when { color: var(--accent); }
-.veil-spiral {
-  position: absolute; width: min(90vmin, 820px); height: min(90vmin, 820px); right: -14vmin; bottom: -22vmin;
-  opacity: 0.5; pointer-events: none;
-}
-.veil-spiral path {
-  fill: none; stroke: var(--accent); stroke-width: 0.35; stroke-linecap: round;
-  stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 2.6s cubic-bezier(0.3, 0.6, 0.2, 1);
-  filter: drop-shadow(0 0 1.5px rgba(var(--accent-rgb), 0.8));
-}
-.veil.on .veil-spiral path { stroke-dashoffset: 0; }
 .veil-skip { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); font: 0.7rem var(--mono); color: var(--ink-dim); opacity: 0.6; }
+
+/* ================= welcome guide ================= */
+.guide {
+  width: min(780px, calc(100vw - 2rem)); max-height: calc(100dvh - 3rem); overflow: auto;
+  padding: 2rem 2.2rem 1.5rem; color: var(--ink);
+  background: linear-gradient(180deg, #14161c, #0f1014); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 40px 120px -30px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(var(--accent-rgb), 0.08), 0 0 80px -40px rgba(var(--accent-rgb), 0.5);
+}
+.guide::backdrop { background: rgba(6, 7, 9, 0.72); }
+.guide[open] { animation: guide-in 0.35s cubic-bezier(0.2, 0.7, 0.2, 1); }
+@keyframes guide-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } }
+.guide-kicker { margin: 0; font: 0.66rem var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); }
+.guide-head h2 { margin: 0.2rem 0 0.4rem; font: italic 400 2.3rem/1.1 var(--serif); }
+.guide-lede { margin: 0; font-size: 1.2rem; color: var(--ink-soft); max-width: 38rem; }
+.guide-steps { list-style: none; counter-reset: step; padding: 0; margin: 1.5rem 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem 1.6rem; }
+.guide-steps li { counter-increment: step; position: relative; padding-left: 2.2rem; }
+.guide-steps li::before {
+  content: counter(step, upper-roman); position: absolute; left: 0; top: 0; width: 1.8rem;
+  font: italic 1.15rem var(--serif); color: var(--accent);
+}
+.guide h3 { margin: 0 0 0.25rem; font: 500 0.78rem var(--mono); letter-spacing: 0.04em; color: var(--ink); }
+.guide p { margin: 0; font-size: 1.08rem; line-height: 1.4; color: var(--ink-soft); }
+.guide code { font: 0.74rem var(--mono); color: #8fd3e8; background: rgba(255, 255, 255, 0.04); padding: 0.05rem 0.25rem; border-radius: 3px; }
+.guide b { color: var(--ink); font-weight: 500; }
+.guide-recipe { margin-top: 1.4rem; padding: 1rem 1.1rem; border: 1px solid var(--ink-faint); border-radius: 10px; background: #0b0c0f; }
+.guide-recipe pre { margin: 0.5rem 0 0; font: 0.8rem/1.6 var(--mono); color: var(--ink-soft); overflow: auto; }
+.guide-recipe pre code { background: none; padding: 0; color: inherit; font: inherit; }
+.guide-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem 1rem; margin: 1.2rem 0 0; }
+.guide-keys div { display: flex; gap: 0.5rem; align-items: baseline; }
+.guide-keys dt { font: 0.7rem var(--mono); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 0.05rem 0.35rem; white-space: nowrap; }
+.guide-keys dd { margin: 0; font-size: 1rem; color: var(--ink-dim); font-style: italic; }
+.guide-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--ink-faint); }
+.guide-actions { display: flex; gap: 0.5rem; }
+button.icon#help { font: italic 1.15rem var(--serif); }
+@media (max-width: 640px) {
+  .guide { padding: 1.4rem 1.2rem 1.2rem; }
+  .guide-steps { grid-template-columns: 1fr; }
+  .guide-keys { grid-template-columns: 1fr 1fr; }
+}

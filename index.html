@@ -26,6 +26,7 @@
       <div class="tools">
         <button type="button" id="share">Share</button>
         <button type="button" id="png">PNG</button>
+        <button type="button" id="help" class="icon" aria-label="Welcome guide" title="Welcome guide">?</button>
         <button type="button" id="settings-toggle" class="icon" aria-label="Settings" aria-expanded="false" aria-controls="settings-panel" title="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
@@ -102,6 +103,72 @@
     </main>
 
     <footer id="timeline" class="timeline"></footer>
+    <dialog id="guide" class="guide" aria-labelledby="guide-title">
+      <header class="guide-head">
+        <p class="guide-kicker">Welcome</p>
+        <h2 id="guide-title" tabindex="-1" autofocus>How Atelier works</h2>
+        <p class="guide-lede">A notebook where a few lines of code become a moving picture. Math gives the shape, code gives the steps, and you choose how it looks.</p>
+      </header>
+
+      <ol class="guide-steps">
+        <li>
+          <h3>A page is a canvas, dials and code</h3>
+          <p>The tabs along the top are pages. <b>I</b> and <b>II</b> are reference pages to read and play with. <b>+</b> starts a page of your own; it saves itself in this browser.</p>
+        </li>
+        <li>
+          <h3>Your code draws one moment</h3>
+          <p>The script runs again for every frame. <code>t</code> is the time in seconds and <code>T</code> the length of the timeline. Draw what the picture looks like <i>at time t</i>; play, rewind, scrub and speed just choose which <code>t</code>.</p>
+        </li>
+        <li>
+          <h3>Draw with a few words</h3>
+          <p><code>dot(x, y)</code> a point · <code>line(x1, y1, x2, y2)</code> a segment · <code>path(points)</code> a curve through <code>[[x, y], …]</code> · <code>color("#86a8ff")</code> · <code>pointSize(px)</code> · <code>strokeWidth(px)</code>. Math works without <code>Math.</code>: <code>sin cos sqrt PI TAU PHI</code>.</p>
+        </li>
+        <li>
+          <h3>Dials are variables</h3>
+          <p><b>+ dial</b> makes a slider; use its name in the code. <b>▶</b> animates it at its rate. <b>+ colour</b> makes a colour for <code>color(name)</code>.</p>
+        </li>
+        <li>
+          <h3>Go 3D</h3>
+          <p>Give points a third number, <code>dot(x, y, z)</code>. Turn on <b>Orbit</b> (or hold Shift) and drag to walk around it; <code>orbit(yaw, pitch)</code> sets where the camera starts.</p>
+        </li>
+        <li>
+          <h3>Look closer</h3>
+          <p>Hover a point to read its x, y, z. Scroll to zoom, drag to pan. <b>Cinema</b> shows the pattern alone; <b>⚙</b> holds the settings.</p>
+        </li>
+      </ol>
+
+      <div class="guide-recipe">
+        <h3>The shape of almost every pattern</h3>
+<pre><code>duration(10);          // seconds on the timeline
+view(2);               // how much of the plane you see
+
+const pts = [];
+for (let s = 0; s &lt;= TAU * t / T; s += 0.01) {
+  const x = cos(3 * s);   // ← your formula
+  const y = sin(2 * s);
+  pts.push([x, y]);
+}
+path(pts);             // grows as t runs</code></pre>
+      </div>
+
+      <dl class="guide-keys">
+        <div><dt>Space</dt><dd>play / pause</dd></div>
+        <div><dt>C</dt><dd>cinema</dd></div>
+        <div><dt>Ctrl+Enter</dt><dd>run now</dd></div>
+        <div><dt>Ctrl+/</dt><dd>comment a line</dd></div>
+        <div><dt>Shift-drag</dt><dd>rotate in 3D</dd></div>
+        <div><dt>Double-click</dt><dd>reset the view</dd></div>
+      </dl>
+
+      <footer class="guide-foot">
+        <span class="hint">Open this again with <b>?</b> in the top right.</span>
+        <div class="guide-actions">
+          <button type="button" id="guide-blank">Start a blank page</button>
+          <button type="button" id="guide-close" class="primary">Explore Phyllotaxis</button>
+        </div>
+      </footer>
+    </dialog>
+
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

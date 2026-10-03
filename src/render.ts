@@ -46,26 +46,60 @@ export function drawFrame(ctx: CanvasRenderingContext2D, width: number, height: 
   ctx.clearRect(0, 0, width, height);
   drawPattern(ctx, width, height, frame, cam);
 
-  if (opts.glow) {
-    // blur a copy of the pattern and add it back on top: light bleeding off the ink
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.filter = "blur(8px)";
-    ctx.globalAlpha = 0.3;
-    ctx.drawImage(ctx.canvas, 0, 0, width, height);
-    ctx.filter = "blur(2px)";
-    ctx.globalAlpha = 0.15;
-    ctx.drawImage(ctx.canvas, 0, 0, width, height);
-    ctx.restore();
-  }
+  if (opts.glow) addGlow(ctx, width, height);
   // the grid goes underneath what is already drawn
   if (opts.grid) {
     ctx.save();
     ctx.globalCompositeOperation = "destination-over";
-    drawGrid(ctx, width, height, frame, cam);
+    ctx.drawImage(cachedGrid(ctx, width, height, frame, cam), 0, 0, width, height);
     ctx.restore();
   }
   if (!isFlat(cam)) drawGizmo(ctx, width, height, cam);
+}
+
+// The grid only changes when the camera or canvas does, so it is drawn once
+// into its own canvas and reused while the pattern animates.
+let gridCanvas: HTMLCanvasElement | null = null;
+let gridKey = "";
+function cachedGrid(ctx: CanvasRenderingContext2D, width: number, height: number, frame: Frame, cam: Camera) {
+  const src = ctx.canvas;
+  const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent-rgb");
+  const key = [src.width, src.height, frame.view, cam.zoom, cam.ox, cam.oy, cam.yaw, cam.pitch, accent].join();
+  gridCanvas ??= document.createElement("canvas");
+  if (key !== gridKey) {
+    gridKey = key;
+    gridCanvas.width = src.width;
+    gridCanvas.height = src.height;
+    const g = gridCanvas.getContext("2d")!;
+    g.setTransform(src.width / width, 0, 0, src.height / height, 0, 0);
+    drawGrid(g, width, height, frame, cam);
+  }
+  return gridCanvas;
+}
+
+// The glow is made at a quarter of the resolution: shrink the pattern, blur it
+// a little, and stretch it back over the original. Far cheaper than blurring
+// the full-size canvas, and the upscale softens it for free.
+let glowCanvas: HTMLCanvasElement | null = null;
+function addGlow(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const src = ctx.canvas;
+  const gw = Math.max(1, Math.round(width / 4)), gh = Math.max(1, Math.round(height / 4));
+  glowCanvas ??= document.createElement("canvas");
+  if (glowCanvas.width !== gw || glowCanvas.height !== gh) {
+    glowCanvas.width = gw;
+    glowCanvas.height = gh;
+  }
+  const g = glowCanvas.getContext("2d")!;
+  g.clearRect(0, 0, gw, gh);
+  g.filter = "blur(2px)";
+  g.drawImage(src, 0, 0, gw, gh);
+  g.filter = "none";
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = 0.55;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(glowCanvas, 0, 0, width, height);
+  ctx.restore();
 }
 
 const isFlat = (cam: Camera) => Math.abs(cam.yaw) < 1e-6 && Math.abs(cam.pitch) < 1e-6;

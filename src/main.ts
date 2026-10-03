@@ -531,6 +531,38 @@ function tick(now: number) {
   requestAnimationFrame(tick);
 }
 
+// ---- welcome guide: once on a first visit, and any time from the ? button
+const guide = $<HTMLDialogElement>("guide");
+function openGuide() {
+  if (guide.open) return;
+  guide.showModal();
+  // start at the top (the browser otherwise focuses, and scrolls to, the first button)
+  $("guide-title").focus({ preventScroll: true });
+  guide.scrollTop = 0;
+}
+function maybeWelcome() {
+  let seen = false;
+  try {
+    seen = localStorage.getItem("atelier.welcomed") === "1";
+    localStorage.setItem("atelier.welcomed", "1");
+  } catch {
+    /* no storage: show it */
+  }
+  if (!seen) openGuide();
+}
+$("help").addEventListener("click", openGuide);
+$("guide-close").addEventListener("click", () => {
+  guide.close();
+  if (page !== refPages[0]) open(REF_ID);
+});
+$("guide-blank").addEventListener("click", () => {
+  guide.close();
+  addPage(BLANK, nextUntitled());
+});
+guide.addEventListener("click", (e) => {
+  if (e.target === guide) guide.close(); // a click on the dimmed backdrop
+});
+
 // ---- start ---------------------------------------------------------------
 
 async function start() {
@@ -544,7 +576,8 @@ async function start() {
     open(stored.active ?? REF_ID);
   }
   requestAnimationFrame(tick);
-  if (settings.intro) showIntro();
+  if (settings.intro) showIntro(maybeWelcome);
+  else maybeWelcome();
 }
 
 start();
