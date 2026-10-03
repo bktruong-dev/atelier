@@ -94,9 +94,27 @@ const camera = attachCamera(canvas, cam, {
 const dialValues = () => Object.fromEntries(page.dials.map((d) => [d.name, d.kind === "color" ? d.color ?? "#86a8ff" : d.value]));
 
 function recompile() {
+  if (page.untrusted) return; // code from a link waits for the Run button
   sandbox.setCode(page.code, page.dials.map((d) => d.name));
   needsFrame = true;
 }
+
+// ---- code from a share link: shown, but paused until you choose to run it
+const untrustedBanner = $("untrusted");
+function showTrust() {
+  untrustedBanner.hidden = !page.untrusted;
+}
+$("trust-run").addEventListener("click", () => {
+  delete page.untrusted;
+  showTrust();
+  recompile();
+  clock.reset();
+  clock.play(1);
+  touch();
+});
+$("trust-delete").addEventListener("click", () => {
+  if (!isRef(page)) closePage(page);
+});
 
 // ---- pages ---------------------------------------------------------------
 
@@ -113,6 +131,7 @@ function open(id: string) {
   clock.reset();
   clock.play(1);
   showError(null);
+  showTrust();
   refreshLayers();
   rebuildDials();
   recompile();
@@ -120,9 +139,10 @@ function open(id: string) {
   save();
 }
 
-function addPage(t: Template, name = t.name) {
+function addPage(t: Template, name = t.name, untrusted = false) {
   const p = fromTemplate(t, newId());
   p.name = name;
+  if (untrusted) p.untrusted = true;
   pages.push(p);
   open(p.id);
   return p;
@@ -546,7 +566,7 @@ function tick(now: number) {
     return d && d.kind !== "color" ? d.value : undefined;
   });
   if (clock.t !== lastT) needsFrame = true;
-  if (needsFrame) {
+  if (needsFrame && !page.untrusted) {
     sandbox.request(clock.t, clock.duration, dialValues());
     lastT = clock.t;
     needsFrame = false;
@@ -620,8 +640,7 @@ async function start() {
   const shared = hash && (await decodeShare(hash[1]));
   history.replaceState(null, "", location.pathname); // the page now lives in the notebook
   if (shared) {
-    addPage(shared, `${shared.name} (shared)`);
-    toast("Opened a shared page. Its code runs in a sandbox.");
+    addPage(shared, `${shared.name} (shared)`, true);
   } else {
     open(stored.active ?? REF_ID);
   }

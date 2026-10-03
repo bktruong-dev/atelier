@@ -39,6 +39,15 @@
         <div class="plate">
           <canvas id="canvas" aria-label="Pattern. Drag to pan, scroll to zoom, shift-drag to rotate."></canvas>
           <output id="coords" class="coords" aria-hidden="true"></output>
+          <div id="untrusted" class="untrusted" role="alertdialog" aria-labelledby="untrusted-title" hidden>
+            <p class="untrusted-kicker">Shared page</p>
+            <h3 id="untrusted-title">This page came from a link and contains code.</h3>
+            <p>It hasn't run yet. Read it in the editor first if you like; when you run it, it stays inside a sandbox with no access to your files, other sites or the network.</p>
+            <div class="untrusted-actions">
+              <button type="button" id="trust-delete">Delete page</button>
+              <button type="button" id="trust-run" class="primary">Run it</button>
+            </div>
+          </div>
           <div id="pin" class="pin" hidden aria-hidden="true"><span class="pin-dot"></span><span id="pin-label" class="pin-label"></span></div>
           <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
           <div class="view-tools">

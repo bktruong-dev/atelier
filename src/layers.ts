@@ -71,7 +71,7 @@ export class LayerSet {
     for (const l of layers) {
       const r = this.runners.get(l.id);
       const p = find(l.pageId);
-      if (!r || !p || !l.visible) continue;
+      if (!r || !p || !l.visible || p.untrusted) continue; // a shared page nobody has approved stays dark
       const t = l.time === "main" ? mainT : dialValue(l.time) ?? mainT;
       const names = p.dials.map((d) => d.name);
       const values = Object.fromEntries(p.dials.map((d) => [d.name, d.kind === "color" ? d.color ?? "#86a8ff" : d.value]));

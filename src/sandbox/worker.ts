@@ -19,10 +19,15 @@ for (const key of [
   "indexedDB", "caches", "BroadcastChannel", "Worker", "SharedWorker", "Request",
   "postMessage", "close", "navigator", "location", "addEventListener", "onmessage",
 ]) {
-  try {
-    Object.defineProperty(scope, key, { value: undefined, writable: false, configurable: false });
-  } catch {
-    /* not present in this browser */
+  // remove it from the global and from every prototype above it, so
+  // WorkerGlobalScope.prototype.fetch (and the like) can't be reached either
+  for (let o: object | null = scope; o; o = Object.getPrototypeOf(o)) {
+    if (!Object.prototype.hasOwnProperty.call(o, key) && o !== scope) continue;
+    try {
+      Object.defineProperty(o, key, { value: undefined, writable: false, configurable: false });
+    } catch {
+      /* not present, or locked by the browser */
+    }
   }
 }
 

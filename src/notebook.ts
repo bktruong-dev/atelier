@@ -39,6 +39,8 @@ export interface Page {
   code: string;
   dials: Dial[];
   layers?: Layer[];
+  /** Arrived in a share link and hasn't been approved yet: its code must not run. */
+  untrusted?: boolean;
   updated: number;
 }
 
@@ -132,6 +134,7 @@ function cleanPage(p: unknown): Page | null {
     code: o.code,
     dials: cleanDials(o.dials),
     layers: cleanLayers(o.layers),
+    ...(o.untrusted === true ? { untrusted: true } : {}),
     updated: num(o.updated, 0),
   };
 }
