@@ -8,7 +8,7 @@ import { drawFrame, fitCamera, hasDepth, nearestPoint, newCamera, scaleOf, type 
 import { DEFAULT_DURATION } from "./sandbox/ops";
 import { Sandbox, type FrameResult } from "./sandbox/host";
 import { decodeShare, encodeShare } from "./share";
-import { applyAccent, DPR_CAP, loadSettings, saveSettings } from "./settings";
+import { applyAccent, applyBackground, clearBackgroundImage, DPR_CAP, loadBackgroundImage, loadSettings, saveSettings, storeBackgroundImage } from "./settings";
 import { showIntro } from "./ui/intro";
 import { createSettingsPanel } from "./ui/settings-panel";
 import { renderLayers } from "./ui/layers-panel";
@@ -51,6 +51,8 @@ let needsDraw = true;
 let orbit = false;
 const settings = loadSettings();
 applyAccent(settings.accent);
+let bgImage = loadBackgroundImage();
+applyBackground(settings, bgImage);
 let cinema = false;
 let depth = false; // does the current frame use z?
 /** Use the pattern's orbit() angle on the first frame after a page opens. */
@@ -435,17 +437,34 @@ $("png").addEventListener("click", () => {
   out.width = canvas.width;
   out.height = canvas.height;
   const c = out.getContext("2d")!;
-  c.fillStyle = "#0c0d10";
+  // the same background you see: ink, black, or your image (dimmed, cropped to fill)
+  c.fillStyle = settings.background === "black" ? "#000" : "#0c0d10";
   c.fillRect(0, 0, out.width, out.height);
-  c.drawImage(canvas, 0, 0);
-  out.toBlob((blob) => {
+  const finish = () => {
+    c.drawImage(canvas, 0, 0);
+    out.toBlob(save, "image/png");
+  };
+  if (settings.background === "image" && bgImage) {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.max(out.width / img.width, out.height / img.height);
+      const w = img.width * k, h = img.height * k;
+      c.drawImage(img, (out.width - w) / 2, (out.height - h) / 2, w, h);
+      c.fillStyle = `rgba(6, 7, 9, ${settings.bgDim})`;
+      c.fillRect(0, 0, out.width, out.height);
+      finish();
+    };
+    img.onerror = finish;
+    img.src = bgImage;
+  } else finish();
+  function save(blob: Blob | null) {
     if (!blob) return;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `${(page.name || "pattern").replace(/[^\w-]+/g, "-").toLowerCase()}-t${clock.t.toFixed(1)}.png`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  }, "image/png");
+  }
 });
 
 const toggle = (id: string, get: () => boolean, set: (v: boolean) => void) => {
@@ -461,10 +480,22 @@ toggle("orbit", () => orbit, (v) => (orbit = v));
 createSettingsPanel($("settings-panel"), $("settings-toggle"), settings, (key) => {
   saveSettings(settings);
   if (key === "accent") applyAccent(settings.accent);
+  if (key === "background" || key === "bgDim") applyBackground(settings, bgImage);
   if (key === "quality") resize();
   if (key === "coords" && !settings.coords) coords.textContent = "";
   if (key === "inspect" && !settings.inspect) hidePin();
   needsDraw = true;
+}, {
+  get: () => bgImage,
+  async pick(file) {
+    bgImage = await storeBackgroundImage(file);
+    applyBackground(settings, bgImage);
+  },
+  clear() {
+    clearBackgroundImage();
+    bgImage = null;
+    applyBackground(settings, bgImage);
+  },
 });
 
 // ---- cinema: the pattern alone, full screen, the camera drifting round 3D work

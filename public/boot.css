@@ -1,0 +1,5 @@
+/* Loaded first, before any script: a dark page from the very first paint, and
+   nothing shown until the real stylesheet (src/style.css) arrives and reveals
+   the body. Without this, a reload briefly shows the unstyled page. */
+html { background: #0c0d10; color-scheme: dark; }
+body { visibility: hidden; }

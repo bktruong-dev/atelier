@@ -1,4 +1,4 @@
-import { ACCENTS, DEFAULTS, type Accent, type Quality, type Settings } from "../settings";
+import { ACCENTS, DEFAULTS, type Accent, type Background, type Quality, type Settings } from "../settings";
 
 /** The small settings popover behind the ⚙ button. */
 export function createSettingsPanel(
@@ -6,6 +6,7 @@ export function createSettingsPanel(
   button: HTMLElement,
   s: Settings,
   onChange: (key: keyof Settings) => void,
+  image: { get: () => string | null; pick: (file: File) => Promise<void>; clear: () => void },
 ) {
   const switches: [keyof Settings, string, string][] = [
     ["grid", "Grid", "graph paper and axes"],
@@ -107,7 +108,87 @@ export function createSettingsPanel(
     location.reload();
   });
 
-  panel.replaceChildren(head, ...rows, quality, spinRow, accentRow, reset);
+  // background: dot grid, plain, black, or an image of your own
+  const bgRow = document.createElement("div");
+  bgRow.className = "set-row set-col bg-picker";
+  const fileIn = document.createElement("input");
+  fileIn.type = "file";
+  fileIn.accept = "image/jpeg,image/png,image/webp,image/gif,image/avif";
+  fileIn.hidden = true;
+  const imageTools = document.createElement("div");
+  imageTools.className = "bg-picker";
+  const fileRow = document.createElement("div");
+  fileRow.className = "bg-file";
+  const thumb = document.createElement("span");
+  thumb.className = "bg-thumb";
+  const choose = document.createElement("button");
+  choose.type = "button";
+  choose.textContent = "Choose image…";
+  const removeImg = document.createElement("button");
+  removeImg.type = "button";
+  removeImg.textContent = "Remove";
+  fileRow.append(thumb, choose, removeImg);
+  const dimRow = document.createElement("label");
+  dimRow.className = "bg-dim";
+  const dimText = document.createElement("span");
+  dimText.textContent = "dim";
+  const dim = document.createElement("input");
+  dim.type = "range";
+  dim.min = "0";
+  dim.max = "0.9";
+  dim.step = "0.01";
+  dim.value = String(s.bgDim);
+  dimRow.append(dimText, dim);
+  const bgError = document.createElement("p");
+  bgError.className = "set-error";
+  imageTools.append(fileRow, dimRow, bgError, fileIn);
+
+  const showImageTools = () => {
+    const img = image.get();
+    imageTools.hidden = s.background !== "image";
+    thumb.style.backgroundImage = img ? `url("${img}")` : "";
+    removeImg.disabled = !img;
+    choose.textContent = img ? "Change image…" : "Choose image…";
+    dim.style.setProperty("--fill", `${(s.bgDim / 0.9) * 100}%`);
+  };
+  const bgGroup = segmented<Background>("Background", [["dots", "Dots"], ["plain", "Plain"], ["black", "Black"], ["image", "Image"]], s.background, (v) => {
+    s.background = v;
+    showImageTools();
+    onChange("background");
+    if (v === "image" && !image.get()) fileIn.click(); // nothing picked yet: ask straight away
+  });
+  choose.addEventListener("click", () => fileIn.click());
+  fileIn.addEventListener("change", async () => {
+    const file = fileIn.files?.[0];
+    fileIn.value = "";
+    if (!file) return;
+    bgError.textContent = "";
+    try {
+      await image.pick(file);
+      s.background = "image";
+      bgGroup.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.textContent === "Image")));
+      onChange("background");
+    } catch (err) {
+      bgError.textContent = err instanceof Error ? err.message : "Couldn't use that image.";
+    }
+    showImageTools();
+  });
+  removeImg.addEventListener("click", () => {
+    image.clear();
+    s.background = "dots";
+    bgGroup.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.textContent === "Dots")));
+    onChange("background");
+    showImageTools();
+  });
+  dim.addEventListener("input", () => {
+    s.bgDim = Number(dim.value);
+    showImageTools();
+    onChange("bgDim");
+  });
+  bgRow.append(bgGroup, imageTools);
+  showImageTools();
+
+  panel.replaceChildren(head, ...rows, quality, spinRow, accentRow, bgRow, reset);
 
   const setOpen = (open: boolean) => {
     panel.hidden = !open;
