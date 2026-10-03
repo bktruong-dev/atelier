@@ -36,7 +36,14 @@ export function createTimeline(root: HTMLElement, clock: Clock, onSeek: () => vo
   const time = document.createElement("span");
   time.className = "time";
 
-  root.replaceChildren(reset, rewind, play, scrub, speed, time);
+  const loop = button("↻", "Loop");
+  loop.setAttribute("aria-pressed", "false");
+  loop.addEventListener("click", () => {
+    clock.loop = !clock.loop;
+    loop.setAttribute("aria-pressed", String(clock.loop));
+  });
+
+  root.replaceChildren(reset, rewind, play, scrub, loop, speed, time);
 
   reset.addEventListener("click", () => {
     clock.reset();
@@ -66,7 +73,7 @@ export function createTimeline(root: HTMLElement, clock: Clock, onSeek: () => vo
   });
   speed.addEventListener("change", () => (clock.speed = Number(speed.value)));
 
-  addEventListener("keydown", (e) => {
+  window.addEventListener("keydown", (e) => {
     const target = e.target;
     if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) return;
     if (e.key === " ") {
@@ -83,6 +90,6 @@ export function createTimeline(root: HTMLElement, clock: Clock, onSeek: () => vo
     play.setAttribute("aria-label", forward ? "Pause" : "Play");
     rewind.setAttribute("aria-pressed", String(backward));
     if (document.activeElement !== scrub) scrub.value = String(Math.round((clock.t / clock.duration) * 1000));
-    time.textContent = `t = ${clock.t.toFixed(2)} / ${clock.duration}s`;
+    time.textContent = `t = ${clock.t.toFixed(2)} / ${+clock.duration.toFixed(2)}s`;
   };
 }

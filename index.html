@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Atelier</title>
-    <meta name="description" content="A browser instrument for mathematical patterns." />
+    <meta name="description" content="A browser instrument for building mathematical patterns in code." />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,25 +13,72 @@
   <body>
     <header class="masthead">
       <h1>Atelier</h1>
-      <nav id="presets" aria-label="Patterns"></nav>
+      <nav id="examples" aria-label="Examples"></nav>
+      <div class="tools">
+        <select id="mine" aria-label="My patterns"></select>
+        <button type="button" id="new">New</button>
+        <button type="button" id="save">Save</button>
+        <button type="button" id="delete" hidden>Delete</button>
+        <button type="button" id="share">Share</button>
+        <button type="button" id="png">PNG</button>
+      </div>
     </header>
+
     <main class="stage">
       <figure class="figure">
-        <canvas id="canvas" aria-label="Pattern canvas"></canvas>
+        <div class="canvas-wrap">
+          <canvas id="canvas" aria-label="Pattern. Drag to pan, scroll to zoom, shift-drag to rotate."></canvas>
+          <div class="view-tools">
+            <button type="button" id="orbit" aria-pressed="false" title="Drag to rotate in 3D (or hold Shift)">Orbit</button>
+            <button type="button" id="fit" title="Fit the pattern to the canvas">Fit</button>
+            <button type="button" id="reset-view" title="Reset the view (or double-click)">Reset view</button>
+          </div>
+        </div>
         <figcaption id="caption"></figcaption>
       </figure>
+
       <aside class="panel">
+        <input id="name" class="name" aria-label="Pattern name" maxlength="80" spellcheck="false" />
+
         <section>
-          <h2>Dials</h2>
+          <div class="section-head">
+            <h2>Dials</h2>
+            <button type="button" id="add-dial" class="small">+ dial</button>
+          </div>
           <div id="dials"></div>
         </section>
-        <section>
-          <h2>Formula</h2>
-          <pre id="formula"></pre>
+
+        <section class="code">
+          <div class="section-head">
+            <h2>Code</h2>
+            <span class="hint">Runs as you type · Ctrl+Enter</span>
+          </div>
+          <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Pattern code"></textarea>
+          <button type="button" id="error" class="error" hidden></button>
+
+          <details class="help">
+            <summary>Reference</summary>
+            <p>The script runs again for every frame. Draw the picture for time <code>t</code>; scrubbing and rewinding just pick another <code>t</code>.</p>
+            <dl>
+              <dt><code>t</code>, <code>T</code></dt><dd>current time and duration, in seconds</dd>
+              <dt><code>dial(name, value, min, max, step?)</code></dt><dd>makes a slider and returns its value</dd>
+              <dt><code>duration(seconds)</code></dt><dd>length of the timeline (default 10)</dd>
+              <dt><code>view(radius)</code></dt><dd>how far from the centre is visible (default 2)</dd>
+              <dt><code>dot(x, y, z?)</code></dt><dd>a point</dd>
+              <dt><code>line(x1, y1, x2, y2)</code> or <code>line([x,y,z], [x,y,z])</code></dt><dd>a segment</dd>
+              <dt><code>path(points, closed?)</code></dt><dd>a curve through <code>[[x, y, z?], …]</code></dd>
+              <dt><code>color(c)</code></dt><dd><code>"#86a8ff"</code>, <code>"ink"</code>, <code>"accent"</code>, <code>hsl(h, s, l, a?)</code> or <code>r, g, b, a?</code></dd>
+              <dt><code>pointSize(px)</code>, <code>strokeWidth(px)</code></dt><dd>sizes in screen pixels</dd>
+              <dt>Math</dt><dd><code>sin cos sqrt PI …</code> without <code>Math.</code>, plus <code>TAU PHI lerp clamp range random</code> (seeded, so it is the same every frame)</dd>
+            </dl>
+            <p>Use <code>z</code> for 3D, then drag with Orbit on (or Shift) to turn it.</p>
+          </details>
         </section>
       </aside>
     </main>
+
     <footer id="timeline" class="timeline"></footer>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

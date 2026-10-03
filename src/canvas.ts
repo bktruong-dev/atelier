@@ -1,4 +1,8 @@
-import type { View } from "./patterns/types";
+export interface View {
+  width: number; // CSS pixels
+  height: number;
+  light: boolean; // phones: lower resolution
+}
 
 /** Keeps the canvas backing store matched to its CSS size × devicePixelRatio. */
 export function setupCanvas(canvas: HTMLCanvasElement, onResize: () => void) {

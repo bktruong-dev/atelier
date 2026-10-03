@@ -4,13 +4,16 @@ export class Clock {
   speed = 1; // magnitude, 0.25–100
   direction: 1 | -1 = 1;
   playing = false;
+  loop = false;
 
   constructor(public duration: number) {}
 
   tick(dtSeconds: number): void {
     if (!this.playing) return;
     this.t += dtSeconds * this.speed * this.direction;
-    if (this.t >= this.duration) {
+    if (this.loop && (this.t > this.duration || this.t < 0)) {
+      this.t = ((this.t % this.duration) + this.duration) % this.duration;
+    } else if (this.t >= this.duration) {
       this.t = this.duration;
       this.playing = false;
     } else if (this.t <= 0) {
