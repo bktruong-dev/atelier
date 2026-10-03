@@ -20,6 +20,9 @@ export interface Dial {
   mode: DialMode;
   playing: boolean;
   dir: 1 | -1;
+  /** For dials made by dial() in code: the arguments last seen there, as
+   *  "value|min|max|step". When the code changes them, the slider follows. */
+  decl?: string;
 }
 
 /** Another page drawn underneath this one. */
@@ -107,6 +110,7 @@ export function cleanDial(d: unknown): Dial | null {
     mode,
     playing: o.playing === true,
     dir: o.dir === -1 ? -1 : 1,
+    ...(typeof o.decl === "string" ? { decl: o.decl.slice(0, 120) } : {}),
   };
 }
 

@@ -83,8 +83,6 @@ let dialValues: Record<string, number | string> = {};
 let dialRequests: { name: string; value: number; min: number; max: number; step: number }[] = [];
 function dial(name: unknown, value: unknown = 1, min?: unknown, max?: unknown, step?: unknown): number {
   if (typeof name !== "string" || badDialName(name)) throw new TypeError(`dial needs a name you could use as a variable, like dial("speed", 1, 0, 5)`);
-  const current = dialValues[name];
-  if (typeof current === "number") return current;
   const v = Number(value);
   if (!finite(v)) throw new TypeError(`dial "${name}": the starting value must be a number`);
   let lo = min === undefined ? Math.min(0, v) : Number(min);
@@ -94,7 +92,11 @@ function dial(name: unknown, value: unknown = 1, min?: unknown, max?: unknown, s
   if (lo === hi) hi = lo + 1;
   let st = step === undefined ? (hi - lo) / 1000 : Number(step);
   if (!finite(st) || st <= 0) st = (hi - lo) / 1000;
+  // tell the page what the code asked for, every time, so editing the
+  // arguments in code updates the slider
   if (!dialRequests.some((r) => r.name === name) && dialRequests.length < 32) dialRequests.push({ name, value: v, min: lo, max: hi, step: st });
+  const current = dialValues[name];
+  if (typeof current === "number") return current;
   return Math.min(hi, Math.max(lo, v));
 }
 /** The starting camera angle, in degrees: turn around the vertical, then tilt. */

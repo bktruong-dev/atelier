@@ -17,6 +17,8 @@ export interface Settings {
   /** The quote on arrival. */
   intro: boolean;
   accent: Accent;
+  /** Frames per second and draw time, in the corner of the canvas. */
+  fps: boolean;
 }
 
 export const DEFAULTS: Settings = {
@@ -29,6 +31,7 @@ export const DEFAULTS: Settings = {
   spin: 8,
   intro: true,
   accent: "blue",
+  fps: false,
 };
 
 export const ACCENTS: Record<Accent, string> = {

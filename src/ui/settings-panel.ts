@@ -14,6 +14,7 @@ export function createSettingsPanel(
     ["coords", "Cursor coordinates", "x, y under the cursor"],
     ["smooth", "Smooth camera", "eased zoom, gliding drags"],
     ["intro", "Opening quote", "a line on arrival"],
+    ["fps", "Performance meter", "frames per second and draw time"],
   ];
 
   const head = document.createElement("div");

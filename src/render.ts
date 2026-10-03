@@ -71,42 +71,57 @@ let gridCanvas: HTMLCanvasElement | null = null;
 let gridKey = "";
 function cachedGrid(ctx: CanvasRenderingContext2D, width: number, height: number, frame: Frame, cam: Camera) {
   const src = ctx.canvas;
-  const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent-rgb");
+  // the inline style set by applyAccent: reading it never forces a style recalculation
+  const accent = document.documentElement.style.getPropertyValue("--accent-rgb");
   const key = [src.width, src.height, frame.view, cam.zoom, cam.ox, cam.oy, cam.yaw, cam.pitch, accent].join();
   gridCanvas ??= document.createElement("canvas");
   if (key !== gridKey) {
     gridKey = key;
-    gridCanvas.width = src.width;
-    gridCanvas.height = src.height;
+    // resizing a canvas reallocates it, so only do that when the size really changed
+    if (gridCanvas.width !== src.width || gridCanvas.height !== src.height) {
+      gridCanvas.width = src.width;
+      gridCanvas.height = src.height;
+    }
     const g = gridCanvas.getContext("2d")!;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
     g.setTransform(src.width / width, 0, 0, src.height / height, 0, 0);
     drawGrid(g, width, height, frame, cam);
   }
   return gridCanvas;
 }
 
-// The glow is made at a quarter of the resolution: shrink the pattern, blur it
-// a little, and stretch it back over the original. Far cheaper than blurring
-// the full-size canvas, and the upscale softens it for free.
-let glowCanvas: HTMLCanvasElement | null = null;
+// The glow: shrink the pattern to a quarter and then an eighth of its size and
+// stretch both back over it, added as light. The browser's smoothing during
+// the shrink and stretch does the blurring, so no (slow) canvas filter is needed.
+let glowA: HTMLCanvasElement | null = null;
+let glowB: HTMLCanvasElement | null = null;
+function sized(c: HTMLCanvasElement | null, w: number, h: number) {
+  c ??= document.createElement("canvas");
+  if (c.width !== w || c.height !== h) {
+    c.width = w;
+    c.height = h;
+  }
+  return c;
+}
 function addGlow(ctx: CanvasRenderingContext2D, width: number, height: number) {
   const src = ctx.canvas;
-  const gw = Math.max(1, Math.round(width / 4)), gh = Math.max(1, Math.round(height / 4));
-  glowCanvas ??= document.createElement("canvas");
-  if (glowCanvas.width !== gw || glowCanvas.height !== gh) {
-    glowCanvas.width = gw;
-    glowCanvas.height = gh;
-  }
-  const g = glowCanvas.getContext("2d")!;
-  g.clearRect(0, 0, gw, gh);
-  g.filter = "blur(2px)";
-  g.drawImage(src, 0, 0, gw, gh);
-  g.filter = "none";
+  glowA = sized(glowA, Math.max(1, Math.round(width / 4)), Math.max(1, Math.round(height / 4)));
+  glowB = sized(glowB, Math.max(1, Math.round(width / 8)), Math.max(1, Math.round(height / 8)));
+  const a = glowA.getContext("2d")!;
+  const b = glowB.getContext("2d")!;
+  a.imageSmoothingQuality = b.imageSmoothingQuality = "medium";
+  a.clearRect(0, 0, glowA.width, glowA.height);
+  a.drawImage(src, 0, 0, glowA.width, glowA.height);
+  b.clearRect(0, 0, glowB.width, glowB.height);
+  b.drawImage(glowA, 0, 0, glowB.width, glowB.height);
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
-  ctx.globalAlpha = 0.55;
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(glowCanvas, 0, 0, width, height);
+  ctx.imageSmoothingQuality = "medium";
+  ctx.globalAlpha = 0.35;
+  ctx.drawImage(glowA, 0, 0, width, height);
+  ctx.globalAlpha = 0.45;
+  ctx.drawImage(glowB, 0, 0, width, height);
   ctx.restore();
 }
 

@@ -340,17 +340,38 @@ function animateDials(dt: number) {
 
 // ---- sandbox replies -----------------------------------------------------
 
-/** dial("name", …) in code makes the slider if the page doesn't have it yet. */
+/**
+ * dial("name", value, min, max, step) in code: make the slider if the page
+ * doesn't have it, and when the code's arguments change, update the slider
+ * to match. Changes made by hand on the slider stay until the code changes.
+ */
 function addRequestedDials(p: Page, requests: FrameResult["dialRequests"]) {
-  const fresh = requests.filter((r) => !p.dials.some((d) => d.name === r.name));
-  if (!fresh.length) return;
-  for (const r of fresh) p.dials.push(makeDial(r.name, r.value, r.min, r.max, r.step));
+  let added = false, changed = false;
+  for (const r of requests) {
+    const decl = `${r.value}|${r.min}|${r.max}|${r.step}`;
+    const d = p.dials.find((o) => o.name === r.name);
+    if (!d) {
+      p.dials.push({ ...makeDial(r.name, r.value, r.min, r.max, r.step), decl });
+      added = true;
+    } else if (d.kind !== "color" && d.decl !== decl) {
+      const before = d.decl?.split("|").map(Number);
+      d.min = r.min;
+      d.max = r.max;
+      d.step = r.step;
+      if (!before || before[0] !== r.value) d.value = r.value; // the starting value in code changed
+      d.value = Math.min(d.max, Math.max(d.min, d.value));
+      d.rate = d.rate || (d.max - d.min) / 10;
+      d.decl = decl;
+      changed = true;
+    }
+  }
+  if (!added && !changed) return;
   if (p === page) {
     rebuildDials();
-    recompile();
+    if (added) recompile();
     editor.highlight();
-    refreshLayers();
   }
+  needsFrame = true;
   touch();
 }
 
@@ -538,6 +559,22 @@ function toast(msg: string) {
   toastTimer = window.setTimeout(() => el.classList.remove("show"), 2600);
 }
 
+// ---- performance meter: fps over the last second, and the slowest draw in it
+const perf = $("perf");
+let perfFrames = 0, perfStart = 0, perfDraw = 0, lastDrawMs = 0;
+function meter(now: number) {
+  perf.hidden = !settings.fps;
+  if (!settings.fps) return;
+  perfFrames++;
+  perfDraw = Math.max(perfDraw, lastDrawMs);
+  if (now - perfStart >= 1000) {
+    perf.textContent = `${Math.round((perfFrames * 1000) / (now - perfStart))} fps · draw ${perfDraw.toFixed(1)} ms`;
+    perfFrames = 0;
+    perfDraw = 0;
+    perfStart = now;
+  }
+}
+
 // ---- frame loop ----------------------------------------------------------
 
 let last = performance.now();
@@ -572,14 +609,17 @@ function tick(now: number) {
     needsFrame = false;
   }
   if (needsDraw && frame) {
+    const d0 = performance.now();
     drawFrame(ctx, view.width, view.height, frame, cam, {
       layers: layerSet.frames(page.layers ?? []),
       grid: settings.grid && !cinema,
       glow: settings.glow && !view.light,
     });
+    lastDrawMs = performance.now() - d0;
     needsDraw = false;
   }
   syncTimeline();
+  meter(now);
   requestAnimationFrame(tick);
 }
 

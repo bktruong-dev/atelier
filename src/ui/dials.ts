@@ -143,7 +143,10 @@ export function renderDials(root: HTMLElement, dials: Dial[], h: DialHandlers, o
     hi.addEventListener("change", () => setEnd("max", hi));
     stepIn.addEventListener("change", () => {
       const v = Number(stepIn.value);
-      if (Number.isFinite(v) && v > 0) d.step = v;
+      if (Number.isFinite(v) && v > 0) {
+        d.step = v;
+        d.value = snap(d.value); // land on the new grid straight away
+      }
       sync();
       h.onSettings(d);
     });
