@@ -86,7 +86,7 @@
             <p>The script runs again for every frame. Draw the picture for time <code>t</code>; scrubbing and rewinding just pick another <code>t</code>. Every dial is a variable you can use by name.</p>
             <dl>
               <dt><code>t</code>, <code>T</code></dt><dd>current time and duration, in seconds</dd>
-              <dt><code>duration(seconds)</code></dt><dd>length of the timeline (default 10)</dd>
+              <dt><code>duration(seconds)</code></dt><dd>length of the timeline (default 10). <code>duration(Infinity)</code> makes a pattern that never ends; then <code>T</code> is Infinity, so use <code>t</code> itself rather than <code>t / T</code></dd>
               <dt><code>view(radius)</code></dt><dd>how far from the centre is visible (default 2)</dd>
               <dt><code>dot(x, y, z?)</code></dt><dd>a point</dd>
               <dt><code>line(x1, y1, x2, y2)</code> or <code>line([x,y,z], [x,y,z])</code></dt><dd>a segment</dd>

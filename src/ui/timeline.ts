@@ -3,6 +3,11 @@ import type { Clock } from "../clock";
 const SPEEDS = [0.25, 0.5, 1, 2, 5, 10, 25, 100];
 
 export function createTimeline(root: HTMLElement, clock: Clock, onSeek: () => void) {
+  // An endless pattern has no last second, so the scrubber spans what you've
+  // played so far plus some room, and grows as time runs on.
+  let furthest = 0;
+  const span = () => (Number.isFinite(clock.duration) ? clock.duration : Math.max(30, furthest * 1.25));
+
   const button = (text: string, label: string) => {
     const b = document.createElement("button");
     b.type = "button";
@@ -64,7 +69,7 @@ export function createTimeline(root: HTMLElement, clock: Clock, onSeek: () => vo
     clock.pause();
   });
   scrub.addEventListener("input", () => {
-    clock.seek((Number(scrub.value) / 1000) * clock.duration);
+    clock.seek((Number(scrub.value) / 1000) * span());
     onSeek();
   });
   scrub.addEventListener("change", () => {
@@ -89,8 +94,14 @@ export function createTimeline(root: HTMLElement, clock: Clock, onSeek: () => vo
     play.textContent = forward ? "⏸" : "▶";
     play.setAttribute("aria-label", forward ? "Pause" : "Play");
     rewind.setAttribute("aria-pressed", String(backward));
-    if (document.activeElement !== scrub) scrub.value = String(Math.round((clock.t / clock.duration) * 1000));
+    const endless = !Number.isFinite(clock.duration);
+    if (clock.t < 0.001) furthest = 0; // a reset or a new page
+    // grow the window in steps, so the thumb doesn't creep backwards every frame
+    if (endless && clock.t > span() * 0.9) furthest = clock.t;
+    if (document.activeElement !== scrub) scrub.value = String(Math.round((clock.t / span()) * 1000));
     scrub.style.setProperty("--fill", `${(Number(scrub.value) / 10).toFixed(1)}%`);
-    time.textContent = `t = ${clock.t.toFixed(2)} / ${+clock.duration.toFixed(2)}s`;
+    time.textContent = endless ? `t = ${clock.t.toFixed(2)} / ∞` : `t = ${clock.t.toFixed(2)} / ${+clock.duration.toFixed(2)}s`;
+    time.title = endless ? "This pattern never ends" : "";
+    loop.disabled = endless;
   };
 }

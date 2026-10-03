@@ -11,7 +11,13 @@ export class Clock {
   tick(dtSeconds: number): void {
     if (!this.playing) return;
     this.t += dtSeconds * this.speed * this.direction;
-    if (this.loop && (this.t > this.duration || this.t < 0)) {
+    if (!Number.isFinite(this.duration)) {
+      // an endless pattern: time runs on forever, and only stops at 0 going backwards
+      if (this.t <= 0) {
+        this.t = 0;
+        if (this.direction === -1) this.playing = false;
+      }
+    } else if (this.loop && (this.t > this.duration || this.t < 0)) {
       this.t = ((this.t % this.duration) + this.duration) % this.duration;
     } else if (this.t >= this.duration) {
       this.t = this.duration;
@@ -26,7 +32,7 @@ export class Clock {
     this.direction = direction;
     // Playing from an end restarts from the other end.
     if (direction === 1 && this.t >= this.duration) this.t = 0;
-    if (direction === -1 && this.t <= 0) this.t = this.duration;
+    if (direction === -1 && this.t <= 0 && Number.isFinite(this.duration)) this.t = this.duration;
     this.playing = true;
   }
 

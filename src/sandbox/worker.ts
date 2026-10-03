@@ -55,9 +55,14 @@ function put3(op: number, x: number, y: number, z: number) {
 
 // ---- the pattern API -----------------------------------------------------
 
+/** Timeline length in seconds. Infinity (or "forever") means the pattern never ends. */
 function setDuration(seconds: unknown) {
+  if (seconds === Infinity || seconds === "forever" || seconds === "infinite") {
+    duration = Infinity;
+    return;
+  }
   const s = Number(seconds);
-  if (finite(s)) duration = Math.min(3600, Math.max(0.5, s));
+  if (finite(s)) duration = Math.min(1e6, Math.max(0.5, s));
 }
 
 function view(radius: unknown) {

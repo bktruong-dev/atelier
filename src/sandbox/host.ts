@@ -104,7 +104,7 @@ function clean(r: Record<string, unknown>): FrameResult | null {
   }
   return {
     buf,
-    duration: isNum(r.duration) && r.duration > 0 ? r.duration : DEFAULT_DURATION,
+    duration: r.duration === Infinity ? Infinity : isNum(r.duration) && r.duration > 0 ? r.duration : DEFAULT_DURATION,
     view: isNum(r.view) && r.view > 0 ? r.view : DEFAULT_VIEW,
     orbit: Array.isArray(r.orbit) && isNum(r.orbit[0]) && isNum(r.orbit[1]) ? [r.orbit[0], r.orbit[1]] : null,
     error,
