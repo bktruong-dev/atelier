@@ -81,7 +81,12 @@ export function renderDials(root: HTMLElement, dials: Dial[], h: DialHandlers, o
     row.append(top, track, drawer);
     root.append(row);
 
-    const decimals = () => (d.step >= 1 ? 0 : Math.min(5, Math.ceil(-Math.log10(d.step) - 1e-9)));
+    // enough decimals for every value on the grid: min, min + step, min + 2·step, …
+    const places = (n: number) => {
+      const t = String(+n.toFixed(6));
+      return t.includes(".") ? t.length - t.indexOf(".") - 1 : 0;
+    };
+    const decimals = () => Math.min(5, Math.max(places(d.step), places(d.min)));
     const sync = () => {
       play.textContent = d.playing ? "❚❚" : "▶";
       play.setAttribute("aria-label", `${d.playing ? "Stop" : "Animate"} ${d.name}`);

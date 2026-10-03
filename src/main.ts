@@ -310,6 +310,19 @@ $("add-dial").addEventListener("click", () => {
   toast(`New dial “${name}”: use ${name} in your code`);
 });
 
+/** A value on the dial's step grid, inside its range. */
+const snapToStep = (d: Dial, v: number) => {
+  const s = d.min + Math.round((v - d.min) / d.step) * d.step;
+  return +Math.min(d.max, Math.max(d.min, s)).toFixed(10);
+};
+
+/**
+ * The smooth, unsnapped position of each playing dial. The dial's value (what
+ * the code and the slider see) is always this snapped to the dial's step, so a
+ * step-1 dial clicks through whole numbers while still moving at its rate.
+ */
+const dialPos = new WeakMap<Dial, number>();
+
 /** Move playing dials along at their rate. Returns true if any moved. */
 function animateDials(dt: number) {
   let moved = false;
@@ -317,7 +330,10 @@ function animateDials(dt: number) {
     if (d.kind === "color" || !d.playing || d.rate <= 0) continue;
     moved = true;
     const span = d.max - d.min;
-    let v = d.value + d.dir * d.rate * dt;
+    // carry on from the smooth position, unless the value was changed by hand since
+    const kept = dialPos.get(d);
+    const from = kept !== undefined && snapToStep(d, kept) === d.value ? kept : d.value;
+    let v = from + d.dir * d.rate * dt;
     if (d.mode === "loop") {
       v = d.min + ((((v - d.min) % span) + span) % span);
     } else if (d.mode === "once") {
@@ -335,7 +351,8 @@ function animateDials(dt: number) {
       }
       v = Math.min(d.max, Math.max(d.min, v));
     }
-    d.value = v;
+    dialPos.set(d, v);
+    d.value = snapToStep(d, v);
   }
   return moved;
 }
