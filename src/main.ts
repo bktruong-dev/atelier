@@ -160,6 +160,13 @@ function renderTabs() {
   plus.setAttribute("aria-label", "New page");
   plus.addEventListener("click", () => addPage(BLANK, nextUntitled()));
   tabs.replaceChildren(...items, plus);
+  // keep the active tab visible by scrolling only the strip (never scrollIntoView, which can move the page)
+  const act = tabs.querySelector<HTMLElement>(".tab.active");
+  if (act) {
+    const left = act.offsetLeft - tabs.offsetLeft;
+    if (left < tabs.scrollLeft) tabs.scrollLeft = left;
+    else if (left + act.offsetWidth > tabs.scrollLeft + tabs.clientWidth) tabs.scrollLeft = left + act.offsetWidth - tabs.clientWidth + 40;
+  }
 
   const index = all.indexOf(page);
   caption.textContent = `Fig. ${ROMAN[index] ?? index + 1} — ${page.name || "Untitled"}`;
