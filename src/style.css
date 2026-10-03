@@ -18,6 +18,17 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
+/* Desktop is an app-like layout: only the panel and editor scroll, never the page.
+   clip (not hidden) also stops focus() and scrollIntoView from shifting it. */
+@media (min-width: 901px) {
+  html, body { overflow: clip; }
+}
+* { scrollbar-width: thin; scrollbar-color: #2e3138 transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2e3138; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: #3d4048; }
+::-webkit-scrollbar-button { display: none; }
 body {
   background:
     radial-gradient(1200px 700px at 30% 40%, rgba(134, 168, 255, 0.05), transparent 70%),
@@ -102,7 +113,7 @@ input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-o
   background: radial-gradient(ellipse at center, rgba(20, 22, 27, 0.85), rgba(12, 13, 16, 0.6));
   border: 1px solid var(--line); border-radius: 10px;
   box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.015);
-  overflow: hidden;
+  overflow: clip;
 }
 #canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
 #canvas.dragging { cursor: grabbing; }
@@ -112,11 +123,11 @@ input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-o
 .corner.bl { bottom: 10px; left: 10px; border-width: 0 0 1px 1px; }
 .corner.br { bottom: 10px; right: 10px; border-width: 0 1px 1px 0; }
 .coords {
-  position: absolute; left: 0.85rem; bottom: 0.7rem; font: 0.7rem var(--mono); color: var(--ink-dim);
+  position: absolute; left: 2rem; bottom: 0.65rem; font: 0.7rem var(--mono); color: var(--ink-dim);
   pointer-events: none; letter-spacing: 0.02em;
 }
 .view-tools {
-  position: absolute; right: 0.75rem; top: 0.75rem; display: flex; gap: 0.3rem;
+  position: absolute; right: 2rem; top: 0.9rem; display: flex; gap: 0.3rem;
   padding: 0.25rem; background: rgba(12, 13, 16, 0.75); border: 1px solid var(--line); border-radius: 8px;
   backdrop-filter: blur(6px);
 }
@@ -203,7 +214,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* code */
 .code { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.editor { position: relative; flex: 1; min-height: 280px; border: 1px solid var(--line); border-radius: 8px; background: #0b0c0f; overflow: hidden; }
+.editor { position: relative; flex: 1; min-height: 280px; border: 1px solid var(--line); border-radius: 8px; background: #0b0c0f; overflow: clip; }
 .editor:focus-within { border-color: rgba(134, 168, 255, 0.6); }
 .gutter {
   position: absolute; top: 0; bottom: 0; left: 0; width: 2.6rem; margin: 0; padding: 0.8rem 0.55rem 0.8rem 0;
