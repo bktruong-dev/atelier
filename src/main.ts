@@ -1,12 +1,15 @@
 import "./style.css";
 import { setupCanvas } from "./canvas";
 import { Clock } from "./clock";
-import { loadNotebook, makeDial, newId, saveNotebook, type Dial, type Page } from "./notebook";
+import { loadNotebook, makeColorDial, makeDial, newId, saveNotebook, type Dial, type Page } from "./notebook";
 import { BLANK, REFERENCES, type Template } from "./presets";
-import { drawFrame, fitCamera, newCamera, scaleOf, type Frame } from "./render";
+import { drawFrame, fitCamera, hasDepth, nearestPoint, newCamera, scaleOf, type Frame } from "./render";
 import { DEFAULT_DURATION } from "./sandbox/ops";
 import { Sandbox, type FrameResult } from "./sandbox/host";
 import { decodeShare, encodeShare } from "./share";
+import { applyAccent, DPR_CAP, loadSettings, saveSettings } from "./settings";
+import { showIntro } from "./ui/intro";
+import { createSettingsPanel } from "./ui/settings-panel";
 import { attachCamera } from "./ui/camera";
 import { renderDials } from "./ui/dials";
 import { createEditor } from "./ui/editor";
@@ -44,15 +47,17 @@ let frame: Frame | null = null;
 let needsFrame = true;
 let needsDraw = true;
 let orbit = false;
-let grid = true;
-let glow = true;
+const settings = loadSettings();
+applyAccent(settings.accent);
+let cinema = false;
+let depth = false; // does the current frame use z?
 /** Use the pattern's orbit() angle on the first frame after a page opens. */
 let applyOrbit = true;
 let syncDials = () => {};
 
 const clock = new Clock(DEFAULT_DURATION);
 const cam = newCamera();
-const { ctx, view } = setupCanvas(canvas, () => (needsDraw = true));
+const { ctx, view, resize } = setupCanvas(canvas, () => (needsDraw = true), () => DPR_CAP[settings.quality]);
 const sandbox = new Sandbox(onFrame, onTimeout);
 
 const editor = createEditor($<HTMLTextAreaElement>("code"), $("code-mirror"), $("gutter"), {
@@ -69,13 +74,14 @@ const editor = createEditor($<HTMLTextAreaElement>("code"), $("code-mirror"), $(
 
 const syncTimeline = createTimeline($("timeline"), clock, () => (needsFrame = true));
 
-attachCamera(canvas, cam, {
+const camera = attachCamera(canvas, cam, {
   orbit: () => orbit,
+  smooth: () => settings.smooth,
   onChange: () => (needsDraw = true),
   onReset: resetView,
 });
 
-const dialValues = () => Object.fromEntries(page.dials.map((d) => [d.name, d.value]));
+const dialValues = () => Object.fromEntries(page.dials.map((d) => [d.name, d.kind === "color" ? d.color ?? "#86a8ff" : d.value]));
 
 function recompile() {
   sandbox.setCode(page.code, page.dials.map((d) => d.name));
@@ -91,6 +97,8 @@ function open(id: string) {
   nameInput.readOnly = isRef(page);
   editor.set(page.code);
   frame = null;
+  camera.stop();
+  hidePin();
   Object.assign(cam, newCamera());
   clock.reset();
   clock.play(1);
@@ -246,6 +254,17 @@ function rebuildDials(openName: string | null = null) {
   );
 }
 
+$("add-color").addEventListener("click", () => {
+  const taken = new Set(page.dials.map((d) => d.name));
+  const name = ["ink", "paint", "hue", "tint", "shade"].find((c) => !taken.has(c)) ?? `paint${page.dials.length}`;
+  page.dials.push(makeColorDial(name, getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#86a8ff"));
+  rebuildDials();
+  recompile();
+  editor.highlight();
+  touch();
+  toast(`New colour “${name}”: use color(${name}) in your code`);
+});
+
 $("add-dial").addEventListener("click", () => {
   const taken = new Set(page.dials.map((d) => d.name));
   const name = "abcmnpqsuvwxyz".split("").find((c) => !taken.has(c)) ?? `k${page.dials.length}`;
@@ -261,7 +280,7 @@ $("add-dial").addEventListener("click", () => {
 function animateDials(dt: number) {
   let moved = false;
   for (const d of page.dials) {
-    if (!d.playing || d.rate <= 0) continue;
+    if (d.kind === "color" || !d.playing || d.rate <= 0) continue;
     moved = true;
     const span = d.max - d.min;
     let v = d.value + d.dir * d.rate * dt;
@@ -296,6 +315,7 @@ function onFrame(r: FrameResult) {
   }
   showError(null);
   frame = { buf: r.buf, view: r.view };
+  depth = hasDepth(frame);
   if (applyOrbit) {
     applyOrbit = false;
     if (r.orbit) [cam.yaw, cam.pitch] = r.orbit;
@@ -369,8 +389,40 @@ const toggle = (id: string, get: () => boolean, set: (v: boolean) => void) => {
   });
 };
 toggle("orbit", () => orbit, (v) => (orbit = v));
-toggle("grid", () => grid, (v) => (grid = v));
-toggle("glow", () => glow, (v) => (glow = v));
+
+createSettingsPanel($("settings-panel"), $("settings-toggle"), settings, (key) => {
+  saveSettings(settings);
+  if (key === "accent") applyAccent(settings.accent);
+  if (key === "quality") resize();
+  if (key === "coords" && !settings.coords) coords.textContent = "";
+  if (key === "inspect" && !settings.inspect) hidePin();
+  needsDraw = true;
+});
+
+// ---- cinema: the pattern alone, full screen, the camera drifting round 3D work
+function setCinema(on: boolean) {
+  cinema = on;
+  document.body.classList.toggle("cinema", on);
+  $("cinema").setAttribute("aria-pressed", String(on));
+  hidePin();
+  if (on) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    if (!clock.playing) clock.play(1);
+    toast("Cinema: Esc or C to leave");
+  } else if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+$("cinema").addEventListener("click", () => setCinema(!cinema));
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement && cinema) setCinema(false);
+});
+window.addEventListener("keydown", (e) => {
+  const t = e.target;
+  if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return;
+  if (e.key === "c" || e.key === "C") setCinema(!cinema);
+  else if (e.key === "Escape" && cinema) setCinema(false);
+});
 
 $("fit").addEventListener("click", () => {
   if (frame) fitCamera(view.width, view.height, frame, cam);
@@ -378,10 +430,26 @@ $("fit").addEventListener("click", () => {
 });
 $("reset-view").addEventListener("click", resetView);
 
-// Desmos-style readout of the point under the cursor (flat view only)
+// ---- reading the canvas: cursor coordinates, and the point under the cursor
 const coords = $("coords");
+const pin = $("pin");
+const pinLabel = $("pin-label");
+function hidePin() {
+  pin.hidden = true;
+}
+let inspectQueued = false;
+let lastPointer = { x: 0, y: 0 };
 canvas.addEventListener("pointermove", (e) => {
-  if (!frame || cam.yaw !== 0 || cam.pitch !== 0 || e.buttons) return void (coords.textContent = "");
+  const r0 = canvas.getBoundingClientRect();
+  lastPointer = { x: e.clientX - r0.left, y: e.clientY - r0.top };
+  if (settings.inspect && !e.buttons && !cinema && !inspectQueued) {
+    inspectQueued = true;
+    requestAnimationFrame(() => {
+      inspectQueued = false;
+      inspect();
+    });
+  } else if (e.buttons) hidePin();
+  if (!settings.coords || !frame || cam.yaw !== 0 || cam.pitch !== 0 || e.buttons) return void (coords.textContent = "");
   const r = canvas.getBoundingClientRect();
   const k = scaleOf(view.width, view.height, frame, cam);
   const x = (e.clientX - r.left - view.width / 2 - cam.ox) / k;
@@ -389,9 +457,25 @@ canvas.addEventListener("pointermove", (e) => {
   const digits = Math.max(0, Math.min(6, Math.ceil(Math.log10(k / 2))));
   coords.textContent = `(${x.toFixed(digits)}, ${y.toFixed(digits)})`;
 });
-canvas.addEventListener("pointerleave", () => (coords.textContent = ""));
+canvas.addEventListener("pointerleave", () => {
+  coords.textContent = "";
+  hidePin();
+});
+
+/** Show the nearest drawn point's coordinates beside it. */
+function inspect() {
+  if (!frame) return hidePin();
+  const hit = nearestPoint(view.width, view.height, frame, cam, lastPointer.x, lastPointer.y);
+  if (!hit) return hidePin();
+  const f = (v: number) => (Math.abs(v) >= 1000 ? v.toExponential(2) : +v.toFixed(3) + "");
+  pinLabel.textContent = depth ? `x ${f(hit.x)}  y ${f(hit.y)}  z ${f(hit.z)}` : `x ${f(hit.x)}  y ${f(hit.y)}`;
+  pin.style.transform = `translate(${hit.sx}px, ${hit.sy}px)`;
+  pin.classList.toggle("left", hit.sx > view.width - 200);
+  pin.hidden = false;
+}
 
 function resetView() {
+  camera.stop();
   Object.assign(cam, newCamera());
   applyOrbit = true; // back to the pattern's own starting angle, if it has one
   needsFrame = true;
@@ -415,6 +499,15 @@ function tick(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000); // no big jump after a background tab
   last = now;
   clock.tick(dt);
+  if (camera.step(dt)) {
+    needsDraw = true;
+    hidePin();
+  }
+  if ((cam.yaw || cam.pitch) && coords.textContent) coords.textContent = "";
+  if (cinema && depth && settings.spin && !camera.dragging()) {
+    cam.yaw += (settings.spin * Math.PI / 180) * dt;
+    needsDraw = true;
+  }
 
   if (animateDials(dt)) {
     syncDials();
@@ -428,7 +521,10 @@ function tick(now: number) {
     needsFrame = false;
   }
   if (needsDraw && frame) {
-    drawFrame(ctx, view.width, view.height, frame, cam, { grid, glow: glow && !view.light });
+    drawFrame(ctx, view.width, view.height, frame, cam, {
+      grid: settings.grid && !cinema,
+      glow: settings.glow && !view.light,
+    });
     needsDraw = false;
   }
   syncTimeline();
@@ -448,6 +544,7 @@ async function start() {
     open(stored.active ?? REF_ID);
   }
   requestAnimationFrame(tick);
+  if (settings.intro) showIntro();
 }
 
 start();

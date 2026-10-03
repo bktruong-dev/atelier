@@ -24,7 +24,7 @@ export class Sandbox {
   private codeChanged = true;
   private nextId = 0;
   private pending: { id: number; timer: number } | null = null;
-  private queued: { t: number; T: number; values: Record<string, number> } | null = null;
+  private queued: { t: number; T: number; values: Record<string, number | string> } | null = null;
   /** Set after a timeout; cleared when the code changes. */
   halted = false;
 
@@ -44,7 +44,7 @@ export class Sandbox {
     this.halted = false;
   }
 
-  request(t: number, T: number, values: Record<string, number>) {
+  request(t: number, T: number, values: Record<string, number | string>) {
     if (this.halted) return;
     const req = { t, T, values: { ...values } };
     if (this.pending) this.queued = req;
@@ -57,7 +57,7 @@ export class Sandbox {
     this.codeChanged = true;
   }
 
-  private send(req: { t: number; T: number; values: Record<string, number> }) {
+  private send(req: { t: number; T: number; values: Record<string, number | string> }) {
     const id = ++this.nextId;
     const msg = { kind: "frame", id, ...req, code: this.codeChanged ? this.code : undefined, names: this.names };
     this.codeChanged = false;

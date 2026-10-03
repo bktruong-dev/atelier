@@ -8,6 +8,9 @@ export type DialMode = "loop" | "bounce" | "once";
 
 export interface Dial {
   name: string;
+  /** A number slider (default) or a colour, which the code gets as "#rrggbb". */
+  kind?: "number" | "color";
+  color?: string;
   value: number;
   min: number;
   max: number;
@@ -36,6 +39,12 @@ export function newId() {
 export function makeDial(name: string, value = 1, min = 0, max = 10, step = 0.01): Dial {
   return { name, value, min, max, step, rate: (max - min) / 10, mode: "bounce", playing: false, dir: 1 };
 }
+
+export function makeColorDial(name: string, color = "#86a8ff"): Dial {
+  return { ...makeDial(name, 0, 0, 1, 1), kind: "color", color };
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
 
 export function loadNotebook(): { pages: Page[]; active: string | null } {
   try {
@@ -71,6 +80,9 @@ export function cleanDial(d: unknown): Dial | null {
   if (min === max) max = min + 1;
   const step = num(o.step, 0.01) > 0 ? num(o.step, 0.01) : 0.01;
   const mode: DialMode = o.mode === "loop" || o.mode === "once" ? o.mode : "bounce";
+  if (o.kind === "color") {
+    return { ...makeColorDial(o.name, typeof o.color === "string" && HEX.test(o.color) ? o.color.toLowerCase() : "#86a8ff") };
+  }
   return {
     name: o.name,
     value: Math.min(max, Math.max(min, num(o.value, min))),

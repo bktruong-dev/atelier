@@ -227,9 +227,11 @@ listen("message", (e: MessageEvent) => {
   }
 
   len = 0;
-  const dials: Record<string, number> = {};
+  const dials: Record<string, number | string> = {};
   if (m.values && typeof m.values === "object") {
-    for (const [k, v] of Object.entries(m.values)) if (typeof v === "number") dials[k] = v;
+    for (const [k, v] of Object.entries(m.values)) {
+      if (typeof v === "number" || (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v))) dials[k] = v;
+    }
   }
   duration = DEFAULT_DURATION;
   viewRadius = DEFAULT_VIEW;

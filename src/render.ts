@@ -343,3 +343,47 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number, 
   }
   ctx.restore();
 }
+
+/**
+ * The drawn point (dot or path vertex) nearest a screen position, within
+ * maxPx. Returns its world coordinates and where it sits on screen.
+ */
+export function nearestPoint(width: number, height: number, frame: Frame, cam: Camera, mx: number, my: number, maxPx = 14) {
+  const b = frame.buf;
+  const k = scaleOf(width, height, frame, cam);
+  const cx = width / 2 + cam.ox, cy = height / 2 + cam.oy;
+  const rot = rotator(cam);
+  let best = maxPx * maxPx;
+  let hit: { x: number; y: number; z: number; sx: number; sy: number } | null = null;
+  for (let i = 0; i < b.length; ) {
+    const op = b[i];
+    if (op === OP.DOT || op === OP.MOVE || op === OP.LINE) {
+      const p = rot(b[i + 1], b[i + 2], b[i + 3]);
+      const sx = cx + p.X * k, sy = cy - p.Y * k;
+      const d = (sx - mx) ** 2 + (sy - my) ** 2;
+      if (d < best) {
+        best = d;
+        hit = { x: b[i + 1], y: b[i + 2], z: b[i + 3], sx, sy };
+      }
+      i += 4;
+    } else if (op === OP.COLOR) i += 5;
+    else if (op === OP.SIZE || op === OP.WIDTH) i += 2;
+    else i += 1;
+  }
+  return hit;
+}
+
+/** True if anything in the frame leaves the z = 0 plane. */
+export function hasDepth(frame: Frame) {
+  const b = frame.buf;
+  for (let i = 0; i < b.length; ) {
+    const op = b[i];
+    if (op === OP.DOT || op === OP.MOVE || op === OP.LINE) {
+      if (b[i + 3] !== 0) return true;
+      i += 4;
+    } else if (op === OP.COLOR) i += 5;
+    else if (op === OP.SIZE || op === OP.WIDTH) i += 2;
+    else i += 1;
+  }
+  return false;
+}

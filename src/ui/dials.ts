@@ -27,6 +27,10 @@ export function renderDials(root: HTMLElement, dials: Dial[], h: DialHandlers, o
   }
 
   for (const d of dials) {
+    if (d.kind === "color") {
+      rows.push({ d, sync: colorRow(root, d, dials, h) });
+      continue;
+    }
     const row = el("div", "dial");
 
     // ▶  name  =  value  ⋯
@@ -184,6 +188,69 @@ export function renderDials(root: HTMLElement, dials: Dial[], h: DialHandlers, o
 
   /** Call when values change from outside (animation). */
   return () => rows.forEach((r) => r.sync());
+}
+
+/** A colour dial: swatch, hex and a name you can change. */
+function colorRow(root: HTMLElement, d: Dial, dials: Dial[], h: DialHandlers) {
+  const row = el("div", "dial dial-color");
+  const top = el("div", "dial-top");
+  const swatch = input("color", "dial-swatch");
+  swatch.setAttribute("aria-label", `${d.name} colour`);
+  const name = el("span", "dial-name");
+  const eq = el("span", "dial-eq");
+  eq.textContent = "=";
+  const hex = input("text", "dial-value");
+  hex.spellcheck = false;
+  hex.setAttribute("aria-label", `${d.name} hex`);
+  const more = button("dial-more", "⋯");
+  more.setAttribute("aria-label", `${d.name} settings`);
+  top.append(swatch, name, eq, hex, more);
+
+  const drawer = el("div", "dial-drawer");
+  drawer.hidden = true;
+  const nameIn = input("text", "");
+  nameIn.spellcheck = false;
+  const nameErr = el("p", "dial-error");
+  const remove = button("dial-remove", "Remove dial");
+  drawer.append(field("name", nameIn), nameErr, remove);
+  row.append(top, drawer);
+  root.append(row);
+
+  const sync = () => {
+    name.textContent = d.name;
+    swatch.value = d.color ?? "#86a8ff";
+    if (document.activeElement !== hex) hex.value = d.color ?? "";
+    nameIn.value = d.name;
+    row.style.setProperty("--swatch", d.color ?? "#86a8ff");
+  };
+  sync();
+
+  const set = (c: string) => {
+    if (!/^#[0-9a-f]{6}$/i.test(c)) return sync();
+    d.color = c.toLowerCase();
+    sync();
+    h.onValue(d);
+  };
+  swatch.addEventListener("input", () => set(swatch.value));
+  hex.addEventListener("change", () => set(hex.value.trim().startsWith("#") ? hex.value.trim() : "#" + hex.value.trim()));
+  more.addEventListener("click", () => (drawer.hidden = !drawer.hidden));
+  name.addEventListener("click", () => {
+    drawer.hidden = false;
+    nameIn.focus();
+    nameIn.select();
+  });
+  nameIn.addEventListener("change", () => {
+    const next = nameIn.value.trim();
+    if (next === d.name) return;
+    const problem = badDialName(next) ?? (dials.some((o) => o !== d && o.name === next) ? `There is already a dial called “${next}”.` : null);
+    nameErr.textContent = problem ?? "";
+    if (problem) return;
+    const from = d.name;
+    d.name = next;
+    h.onRename(d, from);
+  });
+  remove.addEventListener("click", () => h.onRemove(d));
+  return sync;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string) {

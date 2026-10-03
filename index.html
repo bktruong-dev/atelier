@@ -26,6 +26,10 @@
       <div class="tools">
         <button type="button" id="share">Share</button>
         <button type="button" id="png">PNG</button>
+        <button type="button" id="settings-toggle" class="icon" aria-label="Settings" aria-expanded="false" aria-controls="settings-panel" title="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+        <div id="settings-panel" class="settings-panel" role="dialog" aria-label="Settings" hidden></div>
       </div>
     </header>
 
@@ -34,13 +38,13 @@
         <div class="plate">
           <canvas id="canvas" aria-label="Pattern. Drag to pan, scroll to zoom, shift-drag to rotate."></canvas>
           <output id="coords" class="coords" aria-hidden="true"></output>
+          <div id="pin" class="pin" hidden aria-hidden="true"><span class="pin-dot"></span><span id="pin-label" class="pin-label"></span></div>
           <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
           <div class="view-tools">
-            <button type="button" id="grid" aria-pressed="true" title="Show the grid">Grid</button>
-            <button type="button" id="glow" aria-pressed="true" title="Soft glow on the lines">Glow</button>
             <button type="button" id="orbit" aria-pressed="false" title="Drag to rotate in 3D (or hold Shift)">Orbit</button>
             <button type="button" id="fit" title="Fit the pattern to the canvas">Fit</button>
             <button type="button" id="reset-view" title="Reset the view (or double-click)">Reset</button>
+            <button type="button" id="cinema" aria-pressed="false" title="Cinema: the pattern alone, full screen (C)">Cinema</button>
           </div>
         </div>
         <figcaption id="caption"></figcaption>
@@ -56,7 +60,10 @@
         <section class="card">
           <div class="section-head">
             <h2><span class="num">I.</span> Dials</h2>
-            <button type="button" id="add-dial" class="small">+ dial</button>
+            <div class="head-actions">
+              <button type="button" id="add-color" class="small" title="A colour you can use with color(name)">+ colour</button>
+              <button type="button" id="add-dial" class="small">+ dial</button>
+            </div>
           </div>
           <div id="dials" class="dials"></div>
         </section>
@@ -85,6 +92,7 @@
               <dt><code>path(points, closed?)</code></dt><dd>a curve through <code>[[x, y, z?], …]</code></dd>
               <dt><code>color(c)</code></dt><dd><code>"#86a8ff"</code>, <code>"ink"</code>, <code>"accent"</code>, <code>hsl(h, s, l, a?)</code> or <code>r, g, b, a?</code></dd>
               <dt><code>pointSize(px)</code>, <code>strokeWidth(px)</code></dt><dd>sizes in screen pixels</dd>
+              <dt><code>orbit(yaw, pitch)</code></dt><dd>starting camera angle in degrees, for 3D</dd>
               <dt>Math</dt><dd><code>sin cos sqrt PI …</code> without <code>Math.</code>, plus <code>TAU PHI lerp clamp range random</code> (seeded, so it is the same every frame)</dd>
             </dl>
             <p>Dials: ▶ animates one at its rate (units per second), bouncing, looping or once. Type past an end to stretch the range. Use <code>z</code> for 3D, then drag with Orbit on (or Shift) to turn it.</p>
