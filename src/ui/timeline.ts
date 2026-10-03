@@ -90,6 +90,7 @@ export function createTimeline(root: HTMLElement, clock: Clock, onSeek: () => vo
     play.setAttribute("aria-label", forward ? "Pause" : "Play");
     rewind.setAttribute("aria-pressed", String(backward));
     if (document.activeElement !== scrub) scrub.value = String(Math.round((clock.t / clock.duration) * 1000));
+    scrub.style.setProperty("--fill", `${(Number(scrub.value) / 10).toFixed(1)}%`);
     time.textContent = `t = ${clock.t.toFixed(2)} / ${+clock.duration.toFixed(2)}s`;
   };
 }

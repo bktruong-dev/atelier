@@ -4,21 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Atelier</title>
-    <meta name="description" content="A browser instrument for building mathematical patterns in code." />
+    <meta name="description" content="A notebook for building mathematical patterns in code." />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap" />
   </head>
   <body>
     <header class="masthead">
-      <h1>Atelier</h1>
-      <nav id="examples" aria-label="Examples"></nav>
+      <div class="brand">
+        <h1>Atelier</h1>
+        <span class="tagline">a notebook of patterns</span>
+      </div>
+      <nav id="tabs" class="tabs" aria-label="Notebook pages"></nav>
       <div class="tools">
-        <select id="mine" aria-label="My patterns"></select>
-        <button type="button" id="new">New</button>
-        <button type="button" id="save">Save</button>
-        <button type="button" id="delete" hidden>Delete</button>
         <button type="button" id="share">Share</button>
         <button type="button" id="png">PNG</button>
       </div>
@@ -26,42 +25,50 @@
 
     <main class="stage">
       <figure class="figure">
-        <div class="canvas-wrap">
+        <div class="plate">
           <canvas id="canvas" aria-label="Pattern. Drag to pan, scroll to zoom, shift-drag to rotate."></canvas>
+          <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
           <div class="view-tools">
+            <button type="button" id="grid" aria-pressed="true" title="Show the grid">Grid</button>
             <button type="button" id="orbit" aria-pressed="false" title="Drag to rotate in 3D (or hold Shift)">Orbit</button>
             <button type="button" id="fit" title="Fit the pattern to the canvas">Fit</button>
-            <button type="button" id="reset-view" title="Reset the view (or double-click)">Reset view</button>
+            <button type="button" id="reset-view" title="Reset the view (or double-click)">Reset</button>
           </div>
         </div>
         <figcaption id="caption"></figcaption>
       </figure>
 
       <aside class="panel">
-        <input id="name" class="name" aria-label="Pattern name" maxlength="80" spellcheck="false" />
+        <div class="page-head">
+          <input id="name" class="name" aria-label="Page name" maxlength="80" spellcheck="false" />
+          <button type="button" id="duplicate" class="primary" hidden>Copy to notebook</button>
+        </div>
+        <p id="ref-note" class="note" hidden>This is the reference page. Play with it freely; to keep your changes, copy it to your notebook.</p>
 
-        <section>
+        <section class="card">
           <div class="section-head">
-            <h2>Dials</h2>
+            <h2><span class="num">I.</span> Dials</h2>
             <button type="button" id="add-dial" class="small">+ dial</button>
           </div>
-          <div id="dials"></div>
+          <div id="dials" class="dials"></div>
         </section>
 
-        <section class="code">
+        <section class="card code">
           <div class="section-head">
-            <h2>Code</h2>
-            <span class="hint">Runs as you type · Ctrl+Enter</span>
+            <h2><span class="num">II.</span> Code</h2>
+            <span class="hint">runs as you type · Ctrl+Enter</span>
           </div>
-          <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Pattern code"></textarea>
+          <div class="editor">
+            <pre id="code-mirror" class="code-mirror" aria-hidden="true"></pre>
+            <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Pattern code"></textarea>
+          </div>
           <button type="button" id="error" class="error" hidden></button>
 
           <details class="help">
             <summary>Reference</summary>
-            <p>The script runs again for every frame. Draw the picture for time <code>t</code>; scrubbing and rewinding just pick another <code>t</code>.</p>
+            <p>The script runs again for every frame. Draw the picture for time <code>t</code>; scrubbing and rewinding just pick another <code>t</code>. Every dial is a variable you can use by name.</p>
             <dl>
               <dt><code>t</code>, <code>T</code></dt><dd>current time and duration, in seconds</dd>
-              <dt><code>dial(name, value, min, max, step?)</code></dt><dd>makes a slider and returns its value</dd>
               <dt><code>duration(seconds)</code></dt><dd>length of the timeline (default 10)</dd>
               <dt><code>view(radius)</code></dt><dd>how far from the centre is visible (default 2)</dd>
               <dt><code>dot(x, y, z?)</code></dt><dd>a point</dd>
@@ -71,7 +78,7 @@
               <dt><code>pointSize(px)</code>, <code>strokeWidth(px)</code></dt><dd>sizes in screen pixels</dd>
               <dt>Math</dt><dd><code>sin cos sqrt PI …</code> without <code>Math.</code>, plus <code>TAU PHI lerp clamp range random</code> (seeded, so it is the same every frame)</dd>
             </dl>
-            <p>Use <code>z</code> for 3D, then drag with Orbit on (or Shift) to turn it.</p>
+            <p>Dials: ▶ animates one at its rate (units per second), bouncing, looping or once. Type past an end to stretch the range. Use <code>z</code> for 3D, then drag with Orbit on (or Shift) to turn it.</p>
           </details>
         </section>
       </aside>

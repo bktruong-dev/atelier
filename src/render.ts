@@ -36,8 +36,9 @@ export function scaleOf(width: number, height: number, frame: Frame, cam: Camera
   return (Math.min(width, height) / 2 / frame.view) * cam.zoom;
 }
 
-export function drawFrame(ctx: CanvasRenderingContext2D, width: number, height: number, frame: Frame, cam: Camera) {
+export function drawFrame(ctx: CanvasRenderingContext2D, width: number, height: number, frame: Frame, cam: Camera, grid = true) {
   ctx.clearRect(0, 0, width, height);
+  if (grid) drawGrid(ctx, width, height, frame, cam);
   const b = frame.buf;
   const n = b.length;
   const k = scaleOf(width, height, frame, cam);
@@ -159,3 +160,87 @@ export function fitCamera(width: number, height: number, frame: Frame, cam: Came
 }
 
 const finite = Number.isFinite;
+
+/** A "nice" grid step (1, 2 or 5 × 10ⁿ) about `px` pixels apart at scale k. */
+function niceStep(k: number, px: number) {
+  const raw = px / k;
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const m = raw / p;
+  return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+}
+
+/**
+ * Graph-paper grid on the z = 0 plane: minor lines, major lines every 5, and
+ * the axes. It goes through the same camera as the pattern, so it pans, zooms
+ * and tilts with it. Labels only while the view is flat.
+ */
+function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number, frame: Frame, cam: Camera) {
+  const k = scaleOf(width, height, frame, cam);
+  const cx = width / 2 + cam.ox;
+  const cy = height / 2 + cam.oy;
+  const rot = rotator(cam);
+  const flat = Math.abs(cam.yaw) < 1e-6 && Math.abs(cam.pitch) < 1e-6;
+  const step = niceStep(k, 28);
+  const major = step * 5;
+
+  // the world point at the screen centre (exact when flat), and a radius covering the screen
+  const wx = -cam.ox / k, wy = cam.oy / k;
+  const reach = (Math.hypot(width, height) / 2 / k) * (flat ? 1 : 3);
+  const x0 = Math.floor((wx - reach) / step), x1 = Math.ceil((wx + reach) / step);
+  const y0 = Math.floor((wy - reach) / step), y1 = Math.ceil((wy + reach) / step);
+  if (x1 - x0 > 600 || y1 - y0 > 600) return;
+
+  const seg = (ax: number, ay: number, bx: number, by: number) => {
+    const a = rot(ax, ay, 0);
+    const pax = cx + a.X * k, pay = cy - a.Y * k;
+    const b = rot(bx, by, 0);
+    ctx.moveTo(pax, pay);
+    ctx.lineTo(cx + b.X * k, cy - b.Y * k);
+  };
+  const lines = (which: "minor" | "major" | "axis") => {
+    ctx.beginPath();
+    for (let i = x0; i <= x1; i++) {
+      const x = i * step;
+      const isAxis = i === 0, isMajor = Math.abs(Math.round(x / major) * major - x) < step / 2;
+      if ((which === "axis") !== isAxis || (which === "major" && !isMajor) || (which === "minor" && (isMajor || isAxis))) continue;
+      seg(x, y0 * step, x, y1 * step);
+    }
+    for (let j = y0; j <= y1; j++) {
+      const y = j * step;
+      const isAxis = j === 0, isMajor = Math.abs(Math.round(y / major) * major - y) < step / 2;
+      if ((which === "axis") !== isAxis || (which === "major" && !isMajor) || (which === "minor" && (isMajor || isAxis))) continue;
+      seg(x0 * step, y, x1 * step, y);
+    }
+    ctx.stroke();
+  };
+
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(232,230,225,0.035)";
+  lines("minor");
+  ctx.strokeStyle = "rgba(232,230,225,0.08)";
+  lines("major");
+  ctx.strokeStyle = "rgba(134,168,255,0.35)";
+  lines("axis");
+
+  if (flat) {
+    ctx.fillStyle = "rgba(141,139,134,0.75)";
+    ctx.font = "10px 'IBM Plex Mono', monospace";
+    const fmt = (v: number) => +v.toPrecision(6) + "";
+    const ax = Math.min(height - 14, Math.max(12, cy)); // keep labels on screen
+    const ay = Math.min(width - 30, Math.max(4, cx));
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for (let v = Math.ceil((wx - reach) / major) * major; v <= wx + reach; v += major) {
+      if (Math.abs(v) < step / 2) continue;
+      ctx.fillText(fmt(v), cx + v * k, ax + 4);
+    }
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    for (let v = Math.ceil((wy - reach) / major) * major; v <= wy + reach; v += major) {
+      if (Math.abs(v) < step / 2) continue;
+      ctx.fillText(fmt(v), ay + 5, cy - v * k);
+    }
+  }
+  ctx.restore();
+}

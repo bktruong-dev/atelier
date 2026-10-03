@@ -1,20 +1,22 @@
-import { numbers } from "./library";
+import { cleanDials, type Dial } from "./notebook";
 
 /**
- * Share links carry the whole pattern in the URL fragment (#p=…), compressed.
+ * Share links carry the whole page in the URL fragment (#p=…), compressed.
  * The fragment never reaches a server. A link is untrusted input: its code
- * only ever runs in the sandbox worker, and its name is shown as plain text.
+ * only ever runs in the sandbox worker, its dials are re-checked, and its
+ * name is shown as plain text.
  */
 export interface Shared {
   name: string;
   code: string;
-  values: Record<string, number>;
+  dials: Dial[];
 }
 
 const MAX_CODE = 50_000;
 
 export async function encodeShare(p: Shared): Promise<string> {
-  const json = JSON.stringify({ v: 1, n: p.name, c: p.code, d: p.values });
+  const dials = p.dials.map((d) => ({ ...d, playing: false, dir: 1 }));
+  const json = JSON.stringify({ v: 2, n: p.name, c: p.code, d: dials });
   const stream = new Blob([json]).stream().pipeThrough(new CompressionStream("deflate-raw"));
   const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
   let bin = "";
@@ -35,7 +37,7 @@ export async function decodeShare(data: string): Promise<Shared | null> {
     return {
       name: typeof o.n === "string" ? o.n.slice(0, 80) : "Shared pattern",
       code: o.c,
-      values: numbers(o.d),
+      dials: cleanDials(o.d),
     };
   } catch {
     return null;

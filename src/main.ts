@@ -1,14 +1,14 @@
 import "./style.css";
 import { setupCanvas } from "./canvas";
 import { Clock } from "./clock";
-import * as library from "./library";
-import { BLANK, EXAMPLES } from "./presets";
+import { loadNotebook, makeDial, newId, saveNotebook, type Dial, type Page } from "./notebook";
+import { BLANK, REFERENCE, type Template } from "./presets";
 import { drawFrame, fitCamera, newCamera, type Frame } from "./render";
-import { DEFAULT_DURATION, type Decl } from "./sandbox/ops";
+import { DEFAULT_DURATION } from "./sandbox/ops";
 import { Sandbox, type FrameResult } from "./sandbox/host";
 import { decodeShare, encodeShare } from "./share";
 import { attachCamera } from "./ui/camera";
-import { dialSignature, renderDials } from "./ui/dials";
+import { renderDials } from "./ui/dials";
 import { createEditor } from "./ui/editor";
 import { createTimeline } from "./ui/timeline";
 
@@ -18,44 +18,49 @@ const canvas = $<HTMLCanvasElement>("canvas");
 const caption = $("caption");
 const nameInput = $<HTMLInputElement>("name");
 const errorBox = $<HTMLButtonElement>("error");
-const mine = $<HTMLSelectElement>("mine");
-const deleteButton = $<HTMLButtonElement>("delete");
-const orbitButton = $<HTMLButtonElement>("orbit");
-const examplesNav = $("examples");
+const tabs = $("tabs");
 
-const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+const REF_ID = "ref";
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX"];
+
+const fromTemplate = (t: Template, id: string): Page => ({
+  id,
+  name: t.name,
+  code: t.code,
+  dials: t.dials.map((d) => ({ ...d })),
+  updated: Date.now(),
+});
 
 // ---- state ---------------------------------------------------------------
 
-const state = {
-  name: "",
-  code: "",
-  values: {} as Record<string, number>,
-  savedId: null as string | null,
-  example: -1,
-};
+const stored = loadNotebook();
+const pages: Page[] = stored.pages;
+/** The reference page lives in memory only; edits to it are for play. */
+const refPage = fromTemplate(REFERENCE, REF_ID);
+let page: Page = refPage;
+
 let frame: Frame | null = null;
-let decls: Decl[] = [];
-let dialsKey = "";
 let needsFrame = true;
 let needsDraw = true;
 let orbit = false;
+let grid = true;
+let syncDials = () => {};
 
 const clock = new Clock(DEFAULT_DURATION);
 const cam = newCamera();
 const { ctx, view } = setupCanvas(canvas, () => (needsDraw = true));
 const sandbox = new Sandbox(onFrame, onTimeout);
 
-const editor = createEditor($<HTMLTextAreaElement>("code"), {
+const editor = createEditor($<HTMLTextAreaElement>("code"), $("code-mirror"), {
   onChange(code) {
-    state.code = code;
-    sandbox.setCode(code);
-    needsFrame = true;
-    persist();
+    page.code = code;
+    recompile();
+    touch();
   },
   onRun() {
     if (!clock.playing && clock.t >= clock.duration) clock.play(1);
   },
+  dialNames: () => page.dials.map((d) => d.name),
 });
 
 const syncTimeline = createTimeline($("timeline"), clock, () => (needsFrame = true));
@@ -66,47 +71,202 @@ attachCamera(canvas, cam, {
   onReset: resetView,
 });
 
-// ---- loading patterns ----------------------------------------------------
+const dialValues = () => Object.fromEntries(page.dials.map((d) => [d.name, d.value]));
 
-function load(p: { name: string; code: string; values?: Record<string, number> }, opts: { example?: number; savedId?: string | null; play?: boolean } = {}) {
-  state.name = p.name;
-  state.code = p.code;
-  state.values = { ...(p.values ?? {}) };
-  state.example = opts.example ?? -1;
-  state.savedId = opts.savedId ?? null;
-  nameInput.value = p.name;
-  editor.set(p.code);
-  sandbox.setCode(p.code);
+function recompile() {
+  sandbox.setCode(page.code, page.dials.map((d) => d.name));
+  needsFrame = true;
+}
+
+// ---- pages ---------------------------------------------------------------
+
+function open(id: string) {
+  page = id === REF_ID ? refPage : pages.find((p) => p.id === id) ?? refPage;
+  nameInput.value = page.name;
+  nameInput.readOnly = page === refPage;
+  editor.set(page.code);
   frame = null;
-  dialsKey = "";
   Object.assign(cam, newCamera());
   clock.reset();
-  if (opts.play !== false) clock.play(1);
-  needsFrame = true;
+  clock.play(1);
   showError(null);
-  refreshChrome();
-  persist();
+  rebuildDials();
+  recompile();
+  renderTabs();
+  save();
 }
 
-function refreshChrome() {
-  const fig = state.example >= 0 ? ROMAN[state.example] : "∗";
-  caption.textContent = `Fig. ${fig} — ${state.name || "Untitled"}`;
-  for (const b of examplesNav.querySelectorAll<HTMLButtonElement>("button")) {
-    b.setAttribute("aria-pressed", String(Number(b.dataset.index) === state.example));
+function addPage(t: Template, name = t.name) {
+  const p = fromTemplate(t, newId());
+  p.name = name;
+  pages.push(p);
+  open(p.id);
+  return p;
+}
+
+function nextUntitled() {
+  const names = new Set(pages.map((p) => p.name));
+  for (let i = 1; ; i++) if (!names.has(`Page ${i}`)) return `Page ${i}`;
+}
+
+function closePage(p: Page) {
+  if (!confirm(`Delete the page “${p.name}”? This can't be undone.`)) return;
+  const i = pages.indexOf(p);
+  pages.splice(i, 1);
+  open(pages[Math.min(i, pages.length - 1)]?.id ?? REF_ID);
+}
+
+function renderTabs() {
+  const all = [refPage, ...pages];
+  const items = all.map((p, i) => {
+    const tab = document.createElement("div");
+    tab.className = "tab" + (p === refPage ? " ref" : "") + (p === page ? " active" : "");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "tab-open";
+    b.setAttribute("aria-current", String(p === page));
+    const num = document.createElement("span");
+    num.className = "tab-num";
+    num.textContent = ROMAN[i] ?? String(i + 1);
+    const label = document.createElement("span");
+    label.className = "tab-label";
+    label.textContent = p.name || "Untitled";
+    b.append(num, label);
+    b.title = p === refPage ? "Reference page" : p.name;
+    b.addEventListener("click", () => p !== page && open(p.id));
+    b.addEventListener("dblclick", () => {
+      if (p !== refPage) {
+        nameInput.focus();
+        nameInput.select();
+      }
+    });
+    tab.append(b);
+    if (p !== refPage && p === page) {
+      const x = document.createElement("button");
+      x.type = "button";
+      x.className = "tab-close";
+      x.textContent = "×";
+      x.setAttribute("aria-label", `Delete page ${p.name}`);
+      x.addEventListener("click", () => closePage(p));
+      tab.append(x);
+    }
+    return tab;
+  });
+  const plus = document.createElement("button");
+  plus.type = "button";
+  plus.className = "tab-new";
+  plus.textContent = "+";
+  plus.title = "New page";
+  plus.setAttribute("aria-label", "New page");
+  plus.addEventListener("click", () => addPage(BLANK, nextUntitled()));
+  tabs.replaceChildren(...items, plus);
+
+  const index = all.indexOf(page);
+  caption.textContent = `Fig. ${ROMAN[index] ?? index + 1} — ${page.name || "Untitled"}`;
+  $("duplicate").hidden = page !== refPage;
+  $("ref-note").hidden = page !== refPage;
+}
+
+let saveTimer = 0;
+function touch() {
+  if (page !== refPage) page.updated = Date.now();
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(save, 400);
+}
+function save() {
+  if (!saveNotebook(pages, page.id)) toast("Couldn't save: this browser has storage turned off.");
+}
+
+nameInput.addEventListener("input", () => {
+  if (page === refPage) return;
+  page.name = nameInput.value;
+  renderTabs();
+  touch();
+});
+
+$("duplicate").addEventListener("click", () => {
+  const copy = addPage({ name: refPage.name, code: refPage.code, dials: refPage.dials }, `${refPage.name} study`);
+  toast(`Copied to your notebook as “${copy.name}”`);
+});
+
+// ---- dials ---------------------------------------------------------------
+
+function rebuildDials(openName: string | null = null) {
+  syncDials = renderDials(
+    $("dials"),
+    page.dials,
+    {
+      onValue() {
+        needsFrame = true;
+        touch();
+      },
+      onSettings() {
+        needsFrame = true;
+        touch();
+      },
+      onRename(d, from) {
+        // rename the variable in the code too
+        const re = new RegExp(`(?<![\\w$.])${from.replace(/\$/g, "\\$")}(?![\\w$])`, "g");
+        page.code = page.code.replace(re, d.name);
+        const area = $<HTMLTextAreaElement>("code");
+        const scroll = area.scrollTop;
+        editor.set(page.code);
+        area.scrollTop = scroll;
+        rebuildDials(d.name);
+        recompile();
+        touch();
+      },
+      onRemove(d) {
+        page.dials = page.dials.filter((o) => o !== d);
+        rebuildDials();
+        recompile();
+        editor.highlight();
+        touch();
+      },
+    },
+    openName,
+  );
+}
+
+$("add-dial").addEventListener("click", () => {
+  const taken = new Set(page.dials.map((d) => d.name));
+  const name = "abcmnpqsuvwxyz".split("").find((c) => !taken.has(c)) ?? `k${page.dials.length}`;
+  page.dials.push(makeDial(name));
+  rebuildDials();
+  recompile();
+  editor.highlight();
+  touch();
+  toast(`New dial “${name}”: use ${name} in your code`);
+});
+
+/** Move playing dials along at their rate. Returns true if any moved. */
+function animateDials(dt: number) {
+  let moved = false;
+  for (const d of page.dials) {
+    if (!d.playing || d.rate <= 0) continue;
+    moved = true;
+    const span = d.max - d.min;
+    let v = d.value + d.dir * d.rate * dt;
+    if (d.mode === "loop") {
+      v = d.min + ((((v - d.min) % span) + span) % span);
+    } else if (d.mode === "once") {
+      if (v >= d.max) {
+        v = d.max;
+        d.playing = false;
+      }
+    } else {
+      if (v > d.max) {
+        v = d.max - (v - d.max);
+        d.dir = -1;
+      } else if (v < d.min) {
+        v = d.min + (d.min - v);
+        d.dir = 1;
+      }
+      v = Math.min(d.max, Math.max(d.min, v));
+    }
+    d.value = v;
   }
-  deleteButton.hidden = !state.savedId;
-  fillMine();
-}
-
-function fillMine() {
-  const items = library.list();
-  const head = new Option(items.length ? "My patterns" : "My patterns (none saved)", "");
-  mine.replaceChildren(head, ...items.map((s) => new Option(s.name || "Untitled", s.id)));
-  mine.value = state.savedId && items.some((s) => s.id === state.savedId) ? state.savedId : "";
-}
-
-function persist() {
-  library.saveDraft({ name: state.name, code: state.code, values: state.values, savedId: state.savedId });
+  return moved;
 }
 
 // ---- sandbox replies -----------------------------------------------------
@@ -118,18 +278,6 @@ function onFrame(r: FrameResult) {
   }
   showError(null);
   frame = { buf: r.buf, view: r.view };
-
-  const key = dialSignature(r.decls);
-  decls = r.decls;
-  if (key !== dialsKey) {
-    dialsKey = key;
-    renderDials($("dials"), decls, (name, value) => {
-      state.values[name] = value;
-      needsFrame = true;
-      persist();
-    });
-  }
-
   if (r.duration !== clock.duration) {
     clock.duration = r.duration;
     clock.seek(clock.t);
@@ -140,6 +288,8 @@ function onFrame(r: FrameResult) {
 
 function onTimeout() {
   clock.pause();
+  for (const d of page.dials) d.playing = false;
+  syncDials();
   showError({
     message: "This frame took longer than 2 seconds, so the pattern was stopped. Look for a loop that never ends; editing the code runs it again.",
     line: null,
@@ -157,59 +307,15 @@ errorBox.addEventListener("click", () => errorLine && editor.goToLine(errorLine)
 
 // ---- toolbar -------------------------------------------------------------
 
-EXAMPLES.forEach((ex, i) => {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.textContent = ex.name;
-  b.dataset.index = String(i);
-  b.addEventListener("click", () => load(ex, { example: i }));
-  examplesNav.append(b);
-});
-
-$("new").addEventListener("click", () => load(BLANK));
-
-$("save").addEventListener("click", () => {
-  const name = nameInput.value.trim() || "Untitled";
-  const saved = library.upsert({ id: state.savedId, name, code: state.code, values: state.values });
-  if (!saved) return toast("Couldn't save: this browser has storage turned off.");
-  state.savedId = saved.id;
-  state.name = name;
-  state.example = -1;
-  refreshChrome();
-  persist();
-  toast(`Saved “${name}” in this browser`);
-});
-
-deleteButton.addEventListener("click", () => {
-  if (!state.savedId || !confirm(`Delete “${state.name}” from your patterns?`)) return;
-  library.remove(state.savedId);
-  state.savedId = null;
-  refreshChrome();
-  persist();
-  toast("Deleted");
-});
-
-mine.addEventListener("change", () => {
-  const s = mine.value && library.get(mine.value);
-  if (s) load(s, { savedId: s.id });
-});
-
-nameInput.addEventListener("input", () => {
-  state.name = nameInput.value;
-  const fig = state.example >= 0 ? ROMAN[state.example] : "∗";
-  caption.textContent = `Fig. ${fig} — ${state.name || "Untitled"}`;
-  persist();
-});
-
 $("share").addEventListener("click", async () => {
-  const data = await encodeShare({ name: state.name, code: state.code, values: state.values });
+  const data = await encodeShare({ name: page.name, code: page.code, dials: page.dials as Dial[] });
   const url = `${location.origin}${location.pathname}#p=${data}`;
-  history.replaceState(null, "", `#p=${data}`);
   try {
     await navigator.clipboard.writeText(url);
-    toast("Link copied. It contains the code and dial settings.");
+    toast("Link copied. It contains this page's code and dials.");
   } catch {
-    toast("Link is in the address bar. Copy it from there.");
+    history.replaceState(null, "", `#p=${data}`);
+    toast("Couldn't copy. The link is in the address bar.");
   }
 });
 
@@ -225,23 +331,22 @@ $("png").addEventListener("click", () => {
     if (!blob) return;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${(state.name || "pattern").replace(/[^\w-]+/g, "-").toLowerCase()}-t${clock.t.toFixed(1)}.png`;
+    a.download = `${(page.name || "pattern").replace(/[^\w-]+/g, "-").toLowerCase()}-t${clock.t.toFixed(1)}.png`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }, "image/png");
 });
 
-$("add-dial").addEventListener("click", () => {
-  const taken = new Set(decls.map((d) => d.name));
-  const name = "abckmnuvwxyz".split("").find((c) => !taken.has(c)) ?? `k${decls.length}`;
-  editor.insertLine(`const ${name} = dial("${name}", 1, 0, 10);`);
-  toast(`Added dial “${name}”. Use ${name} in your code.`);
-});
-
-orbitButton.addEventListener("click", () => {
-  orbit = !orbit;
-  orbitButton.setAttribute("aria-pressed", String(orbit));
-});
+const toggle = (id: string, get: () => boolean, set: (v: boolean) => void) => {
+  const b = $(id);
+  b.addEventListener("click", () => {
+    set(!get());
+    b.setAttribute("aria-pressed", String(get()));
+    needsDraw = true;
+  });
+};
+toggle("orbit", () => orbit, (v) => (orbit = v));
+toggle("grid", () => grid, (v) => (grid = v));
 
 $("fit").addEventListener("click", () => {
   if (frame) fitCamera(view.width, view.height, frame, cam);
@@ -272,14 +377,19 @@ function tick(now: number) {
   last = now;
   clock.tick(dt);
 
+  if (animateDials(dt)) {
+    syncDials();
+    needsFrame = true;
+    touch();
+  }
   if (clock.t !== lastT) needsFrame = true;
   if (needsFrame) {
-    sandbox.request(clock.t, clock.duration, state.values);
+    sandbox.request(clock.t, clock.duration, dialValues());
     lastT = clock.t;
     needsFrame = false;
   }
   if (needsDraw && frame) {
-    drawFrame(ctx, view.width, view.height, frame, cam);
+    drawFrame(ctx, view.width, view.height, frame, cam, grid);
     needsDraw = false;
   }
   syncTimeline();
@@ -291,14 +401,12 @@ function tick(now: number) {
 async function start() {
   const hash = /^#p=([\w-]+)$/.exec(location.hash);
   const shared = hash && (await decodeShare(hash[1]));
+  history.replaceState(null, "", location.pathname); // the page now lives in the notebook
   if (shared) {
-    load(shared);
-    history.replaceState(null, "", location.pathname); // edits now go to the draft, not back to the link
-    toast("Opened a shared pattern. Its code runs in a sandbox.");
+    addPage(shared, `${shared.name} (shared)`);
+    toast("Opened a shared page. Its code runs in a sandbox.");
   } else {
-    const draft = library.loadDraft();
-    if (draft) load(draft, { savedId: draft.savedId, example: EXAMPLES.findIndex((e) => e.code === draft.code) });
-    else load(EXAMPLES[0], { example: 0 });
+    open(stored.active ?? REF_ID);
   }
   requestAnimationFrame(tick);
 }

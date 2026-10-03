@@ -1,10 +1,7 @@
-import { DEFAULT_DURATION, DEFAULT_VIEW, type Decl } from "./ops";
-
-export type { Decl };
+import { DEFAULT_DURATION, DEFAULT_VIEW } from "./ops";
 
 export interface FrameResult {
   buf: Float32Array;
-  decls: Decl[];
   duration: number;
   view: number;
   error: { message: string; line: number | null } | null;
@@ -21,6 +18,7 @@ const TIME_LIMIT_MS = 2000;
 export class Sandbox {
   private worker!: Worker;
   private code = "";
+  private names: string[] = [];
   private codeChanged = true;
   private nextId = 0;
   private pending: { id: number; timer: number } | null = null;
@@ -35,8 +33,11 @@ export class Sandbox {
     this.spawn();
   }
 
-  setCode(code: string) {
+  /** The code and the dial names it can use; either changing means a recompile. */
+  setCode(code: string, names: string[]) {
+    if (code === this.code && names.join() === this.names.join() && !this.halted) return;
     this.code = code;
+    this.names = [...names];
     this.codeChanged = true;
     this.halted = false;
   }
@@ -56,7 +57,7 @@ export class Sandbox {
 
   private send(req: { t: number; T: number; values: Record<string, number> }) {
     const id = ++this.nextId;
-    const msg = { kind: "frame", id, ...req, code: this.codeChanged ? this.code : undefined };
+    const msg = { kind: "frame", id, ...req, code: this.codeChanged ? this.code : undefined, names: this.names };
     this.codeChanged = false;
     this.pending = { id, timer: window.setTimeout(() => this.timeout(), TIME_LIMIT_MS) };
     this.worker.postMessage(msg);
@@ -91,17 +92,6 @@ const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFin
 
 function clean(r: Record<string, unknown>): FrameResult | null {
   const buf = r.buf instanceof Float32Array ? r.buf : new Float32Array(0);
-  const decls: Decl[] = [];
-  if (Array.isArray(r.decls)) {
-    for (const d of r.decls.slice(0, 64)) {
-      if (
-        d && typeof d.name === "string" && d.name.length <= 32 &&
-        isNum(d.value) && isNum(d.min) && isNum(d.max) && isNum(d.step) && d.step > 0
-      ) {
-        decls.push({ name: d.name, value: d.value, min: d.min, max: d.max, step: d.step });
-      }
-    }
-  }
   let error: FrameResult["error"] = null;
   const e = r.error as Record<string, unknown> | null;
   if (e && typeof e === "object") {
@@ -112,7 +102,6 @@ function clean(r: Record<string, unknown>): FrameResult | null {
   }
   return {
     buf,
-    decls,
     duration: isNum(r.duration) && r.duration > 0 ? r.duration : DEFAULT_DURATION,
     view: isNum(r.view) && r.view > 0 ? r.view : DEFAULT_VIEW,
     error,

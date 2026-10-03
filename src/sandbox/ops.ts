@@ -19,10 +19,25 @@ export const MAX_FLOATS = 4_000_000;
 export const DEFAULT_DURATION = 10;
 export const DEFAULT_VIEW = 2;
 
-export interface Decl {
-  name: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
+/** Everything pattern code can call. Dial names may not reuse these. */
+export const API_NAMES = [
+  "duration", "view", "dot", "line", "path", "color", "hsl", "pointSize", "strokeWidth",
+  "lerp", "clamp", "range", "random", "TAU", "PHI",
+  ...Object.getOwnPropertyNames(Math).filter((k) => k !== "random"),
+];
+
+const RESERVED = new Set([
+  ...API_NAMES, "t", "T", "__api", "__dials",
+  "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
+  "else", "export", "extends", "false", "finally", "for", "function", "if", "import", "in",
+  "instanceof", "let", "new", "null", "return", "static", "super", "switch", "this", "throw",
+  "true", "try", "typeof", "undefined", "var", "void", "while", "with", "yield", "await",
+  "async", "of", "eval", "arguments", "NaN", "Infinity", "self", "globalThis", "Math",
+]);
+
+/** Why a dial name can't be used, or null if it's fine. */
+export function badDialName(name: string): string | null {
+  if (!/^[A-Za-z_$][\w$]{0,23}$/.test(name)) return "Use letters, digits or _, starting with a letter.";
+  if (RESERVED.has(name)) return `“${name}” is already a built-in name.`;
+  return null;
 }

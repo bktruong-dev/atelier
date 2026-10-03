@@ -1,14 +1,14 @@
 /// <reference lib="webworker" />
 /**
  * Runs pattern code. The script is re-run from the top for every frame with
- * `t` and the dial values in scope, so a pattern is always a pure function of time.
+ * `t` and every dial (by its name) in scope, so a pattern is always a pure function of time.
  *
  * Safety: this is a dedicated worker, so there is no DOM, no cookies and no
  * access to the page. Network, storage and messaging globals are removed
  * below before any pattern code runs, and the page kills the worker if a
  * frame takes too long.
  */
-import { DEFAULT_DURATION, DEFAULT_VIEW, MAX_FLOATS, OP, type Decl } from "./ops";
+import { API_NAMES, DEFAULT_DURATION, DEFAULT_VIEW, MAX_FLOATS, OP, badDialName } from "./ops";
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 const send = scope.postMessage.bind(scope);
@@ -30,8 +30,6 @@ for (const key of [
 
 let buf = new Float32Array(1 << 16);
 let len = 0;
-let decls = new Map<string, Decl>();
-let values: Record<string, number> = {};
 let duration = DEFAULT_DURATION;
 let viewRadius = DEFAULT_VIEW;
 
@@ -56,24 +54,6 @@ function put3(op: number, x: number, y: number, z: number) {
 }
 
 // ---- the pattern API -----------------------------------------------------
-
-function dial(name: unknown, value: unknown, min?: unknown, max?: unknown, step?: unknown): number {
-  if (typeof name !== "string" || !/^[\w$ .-]{1,32}$/.test(name)) throw new TypeError('dial needs a short name, like dial("a", 1, 0, 10)');
-  const prior = decls.get(name);
-  if (prior) return prior.value;
-  const v = Number(value);
-  if (!finite(v)) throw new TypeError(`dial "${name}": the starting value must be a number`);
-  let lo = min === undefined ? Math.min(0, v) : Number(min);
-  let hi = max === undefined ? (v === 0 ? 1 : Math.max(Math.abs(v) * 2, lo + 1)) : Number(max);
-  if (!finite(lo) || !finite(hi)) throw new TypeError(`dial "${name}": min and max must be numbers`);
-  if (lo > hi) [lo, hi] = [hi, lo];
-  let s = step === undefined ? (hi - lo) / 1000 : Number(step);
-  if (!finite(s) || s <= 0) s = (hi - lo) / 1000 || 0.001;
-  const current = values[name];
-  const used = finite(current) ? Math.min(hi, Math.max(lo, current)) : Math.min(hi, Math.max(lo, v));
-  decls.set(name, { name, value: used, min: lo, max: hi, step: s });
-  return used;
-}
 
 function setDuration(seconds: unknown) {
   const s = Number(seconds);
@@ -175,11 +155,12 @@ Math.random = random;
 
 const MATH = Object.getOwnPropertyNames(Math).filter((k) => k !== "random");
 const API: Record<string, unknown> = {
-  dial, duration: setDuration, view, dot, line, path, color, hsl, pointSize, strokeWidth,
+  duration: setDuration, view, dot, line, path, color, hsl, pointSize, strokeWidth,
   lerp, clamp, range, random, TAU: Math.PI * 2, PHI: (1 + Math.sqrt(5)) / 2,
 };
 for (const k of MATH) API[k] = (Math as unknown as Record<string, unknown>)[k];
 const NAMES = Object.keys(API);
+if (NAMES.length !== API_NAMES.length) console.warn("API_NAMES in ops.ts is out of date");
 
 // ---- compile and run -----------------------------------------------------
 
@@ -190,7 +171,9 @@ let compileError: { message: string; line: number | null } | null = null;
 // new Function puts the body on line 3, and the prelude below takes one more line.
 // The user's code sits in its own block so it can shadow API names (const max = …).
 const HEADER_LINES = 3;
-const PRELUDE = `"use strict"; const { ${NAMES.join(", ")} } = __api; {\n`;
+const prelude = (dials: string[]) =>
+  `"use strict"; const { ${NAMES.join(", ")} } = __api; const { ${dials.join(", ")} } = __dials; {
+`;
 
 function errorInfo(err: unknown) {
   const e = err instanceof Error ? err : new Error(String(err));
@@ -199,9 +182,9 @@ function errorInfo(err: unknown) {
   return { message: `${e.name}: ${e.message}`.slice(0, 500), line: line && line > 0 ? line : null };
 }
 
-function compile(code: string) {
+function compile(code: string, dials: string[]) {
   try {
-    fn = new Function("__api", "t", "T", PRELUDE + code + "\n}") as PatternFn;
+    fn = new Function("__api", "__dials", "t", "T", prelude(dials) + code + "\n}") as PatternFn;
     compileError = null;
   } catch (err) {
     fn = null;
@@ -212,13 +195,15 @@ function compile(code: string) {
 listen("message", (e: MessageEvent) => {
   const m = e.data;
   if (!m || m.kind !== "frame" || typeof m.id !== "number") return;
-  if (typeof m.code === "string") compile(m.code);
+  if (typeof m.code === "string") {
+    const names = Array.isArray(m.names) ? m.names.filter((n: unknown) => typeof n === "string" && !badDialName(n)) : [];
+    compile(m.code, names);
+  }
 
   len = 0;
-  decls = new Map();
-  values = {};
+  const dials: Record<string, number> = {};
   if (m.values && typeof m.values === "object") {
-    for (const [k, v] of Object.entries(m.values)) if (typeof v === "number") values[k] = v;
+    for (const [k, v] of Object.entries(m.values)) if (typeof v === "number") dials[k] = v;
   }
   duration = DEFAULT_DURATION;
   viewRadius = DEFAULT_VIEW;
@@ -227,7 +212,7 @@ listen("message", (e: MessageEvent) => {
   let error = compileError;
   if (fn && !error) {
     try {
-      fn(API, Number(m.t) || 0, Number(m.T) || DEFAULT_DURATION);
+      fn(API, dials, Number(m.t) || 0, Number(m.T) || DEFAULT_DURATION);
     } catch (err) {
       error = errorInfo(err);
     }
@@ -235,7 +220,7 @@ listen("message", (e: MessageEvent) => {
 
   const out = buf.slice(0, len);
   send(
-    { kind: "frame", id: m.id, buf: out, decls: [...decls.values()], duration, view: viewRadius, error },
+    { kind: "frame", id: m.id, buf: out, duration, view: viewRadius, error },
     [out.buffer],
   );
 });
