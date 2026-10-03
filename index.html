@@ -13,7 +13,13 @@
   <body>
     <header class="masthead">
       <div class="brand">
-        <h1>Atelier</h1>
+        <h1>
+          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M32 32 m0 -1.2 a1.2 1.2 0 0 1 1.2 1.2 a2.4 2.4 0 0 1 -2.4 2.4 a4.4 4.4 0 0 1 -4.4 -4.4 a7.6 7.6 0 0 1 7.6 -7.6 a12.4 12.4 0 0 1 12.4 12.4 a20 20 0 0 1 -20 20 a28 28 0 0 1 -1.6 -55.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="32" cy="32" r="1.6" fill="currentColor"/>
+          </svg>
+          Atelier
+        </h1>
         <span class="tagline">a notebook of patterns</span>
       </div>
       <nav id="tabs" class="tabs" aria-label="Notebook pages"></nav>
@@ -31,6 +37,7 @@
           <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
           <div class="view-tools">
             <button type="button" id="grid" aria-pressed="true" title="Show the grid">Grid</button>
+            <button type="button" id="glow" aria-pressed="true" title="Soft glow on the lines">Glow</button>
             <button type="button" id="orbit" aria-pressed="false" title="Drag to rotate in 3D (or hold Shift)">Orbit</button>
             <button type="button" id="fit" title="Fit the pattern to the canvas">Fit</button>
             <button type="button" id="reset-view" title="Reset the view (or double-click)">Reset</button>

@@ -2,7 +2,7 @@ import "./style.css";
 import { setupCanvas } from "./canvas";
 import { Clock } from "./clock";
 import { loadNotebook, makeDial, newId, saveNotebook, type Dial, type Page } from "./notebook";
-import { BLANK, REFERENCE, type Template } from "./presets";
+import { BLANK, REFERENCES, type Template } from "./presets";
 import { drawFrame, fitCamera, newCamera, scaleOf, type Frame } from "./render";
 import { DEFAULT_DURATION } from "./sandbox/ops";
 import { Sandbox, type FrameResult } from "./sandbox/host";
@@ -36,14 +36,18 @@ const fromTemplate = (t: Template, id: string): Page => ({
 const stored = loadNotebook();
 const pages: Page[] = stored.pages;
 /** The reference page lives in memory only; edits to it are for play. */
-const refPage = fromTemplate(REFERENCE, REF_ID);
-let page: Page = refPage;
+const refPages = REFERENCES.map((t, i) => fromTemplate(t, i === 0 ? REF_ID : `ref-${t.name.toLowerCase()}`));
+const isRef = (p: Page) => refPages.includes(p);
+let page: Page = refPages[0];
 
 let frame: Frame | null = null;
 let needsFrame = true;
 let needsDraw = true;
 let orbit = false;
 let grid = true;
+let glow = true;
+/** Use the pattern's orbit() angle on the first frame after a page opens. */
+let applyOrbit = true;
 let syncDials = () => {};
 
 const clock = new Clock(DEFAULT_DURATION);
@@ -81,9 +85,10 @@ function recompile() {
 // ---- pages ---------------------------------------------------------------
 
 function open(id: string) {
-  page = id === REF_ID ? refPage : pages.find((p) => p.id === id) ?? refPage;
+  page = refPages.find((p) => p.id === id) ?? pages.find((p) => p.id === id) ?? refPages[0];
+  applyOrbit = true;
   nameInput.value = page.name;
-  nameInput.readOnly = page === refPage;
+  nameInput.readOnly = isRef(page);
   editor.set(page.code);
   frame = null;
   Object.assign(cam, newCamera());
@@ -117,10 +122,10 @@ function closePage(p: Page) {
 }
 
 function renderTabs() {
-  const all = [refPage, ...pages];
+  const all = [...refPages, ...pages];
   const items = all.map((p, i) => {
     const tab = document.createElement("div");
-    tab.className = "tab" + (p === refPage ? " ref" : "") + (p === page ? " active" : "");
+    tab.className = "tab" + (isRef(p) ? " ref" : "") + (p === page ? " active" : "");
     const b = document.createElement("button");
     b.type = "button";
     b.className = "tab-open";
@@ -132,16 +137,16 @@ function renderTabs() {
     label.className = "tab-label";
     label.textContent = p.name || "Untitled";
     b.append(num, label);
-    b.title = p === refPage ? "Reference page" : p.name;
+    b.title = isRef(p) ? "Reference page" : p.name;
     b.addEventListener("click", () => p !== page && open(p.id));
     b.addEventListener("dblclick", () => {
-      if (p !== refPage) {
+      if (!isRef(p)) {
         nameInput.focus();
         nameInput.select();
       }
     });
     tab.append(b);
-    if (p !== refPage && p === page) {
+    if (!isRef(p) && p === page) {
       const x = document.createElement("button");
       x.type = "button";
       x.className = "tab-close";
@@ -171,14 +176,14 @@ function renderTabs() {
   const index = all.indexOf(page);
   caption.textContent = `Fig. ${ROMAN[index] ?? index + 1} — ${page.name || "Untitled"}`;
   const dup = $("duplicate");
-  dup.textContent = page === refPage ? "Copy to notebook" : "Duplicate";
-  dup.classList.toggle("primary", page === refPage);
-  $("ref-note").hidden = page !== refPage;
+  dup.textContent = isRef(page) ? "Copy to notebook" : "Duplicate";
+  dup.classList.toggle("primary", isRef(page));
+  $("ref-note").hidden = !isRef(page);
 }
 
 let saveTimer = 0;
 function touch() {
-  if (page !== refPage) page.updated = Date.now();
+  if (!isRef(page)) page.updated = Date.now();
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(save, 400);
 }
@@ -187,7 +192,7 @@ function save() {
 }
 
 nameInput.addEventListener("input", () => {
-  if (page === refPage) return;
+  if (isRef(page)) return;
   page.name = nameInput.value;
   renderTabs();
   touch();
@@ -197,7 +202,7 @@ $("duplicate").addEventListener("click", () => {
   const src = page;
   const copy = addPage(
     { name: src.name, code: src.code, dials: src.dials.map((d) => ({ ...d, playing: false })) },
-    src === refPage ? `${src.name} study` : `${src.name} (copy)`,
+    isRef(src) ? `${src.name} study` : `${src.name} (copy)`,
   );
   toast(`Copied to your notebook as “${copy.name}”`);
 });
@@ -291,6 +296,10 @@ function onFrame(r: FrameResult) {
   }
   showError(null);
   frame = { buf: r.buf, view: r.view };
+  if (applyOrbit) {
+    applyOrbit = false;
+    if (r.orbit) [cam.yaw, cam.pitch] = r.orbit;
+  }
   if (r.duration !== clock.duration) {
     clock.duration = r.duration;
     clock.seek(clock.t);
@@ -361,6 +370,7 @@ const toggle = (id: string, get: () => boolean, set: (v: boolean) => void) => {
 };
 toggle("orbit", () => orbit, (v) => (orbit = v));
 toggle("grid", () => grid, (v) => (grid = v));
+toggle("glow", () => glow, (v) => (glow = v));
 
 $("fit").addEventListener("click", () => {
   if (frame) fitCamera(view.width, view.height, frame, cam);
@@ -383,6 +393,8 @@ canvas.addEventListener("pointerleave", () => (coords.textContent = ""));
 
 function resetView() {
   Object.assign(cam, newCamera());
+  applyOrbit = true; // back to the pattern's own starting angle, if it has one
+  needsFrame = true;
   needsDraw = true;
 }
 
@@ -416,7 +428,7 @@ function tick(now: number) {
     needsFrame = false;
   }
   if (needsDraw && frame) {
-    drawFrame(ctx, view.width, view.height, frame, cam, grid);
+    drawFrame(ctx, view.width, view.height, frame, cam, { grid, glow: glow && !view.light });
     needsDraw = false;
   }
   syncTimeline();

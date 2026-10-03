@@ -65,6 +65,13 @@ function view(radius: unknown) {
   if (finite(r) && r > 0) viewRadius = r;
 }
 
+let startAngle: [number, number] | null = null;
+/** The starting camera angle, in degrees: turn around the vertical, then tilt. */
+function orbit(yawDeg: unknown, pitchDeg: unknown = 0) {
+  const y = Number(yawDeg), p = Number(pitchDeg);
+  if (finite(y) && finite(p)) startAngle = [(y * Math.PI) / 180, Math.max(-90, Math.min(90, p)) * Math.PI / 180];
+}
+
 function dot(x: number, y: number, z = 0) {
   if (finite(x) && finite(y) && finite(z)) put3(OP.DOT, x, y, z);
 }
@@ -155,7 +162,7 @@ Math.random = random;
 
 const MATH = Object.getOwnPropertyNames(Math).filter((k) => k !== "random");
 const API: Record<string, unknown> = {
-  duration: setDuration, view, dot, line, path, color, hsl, pointSize, strokeWidth,
+  duration: setDuration, view, orbit, dot, line, path, color, hsl, pointSize, strokeWidth,
   lerp, clamp, range, random, TAU: Math.PI * 2, PHI: (1 + Math.sqrt(5)) / 2,
 };
 for (const k of MATH) API[k] = (Math as unknown as Record<string, unknown>)[k];
@@ -226,6 +233,7 @@ listen("message", (e: MessageEvent) => {
   }
   duration = DEFAULT_DURATION;
   viewRadius = DEFAULT_VIEW;
+  startAngle = null;
   seed = 0x9e3779b9;
 
   let error = compileError;
@@ -239,7 +247,7 @@ listen("message", (e: MessageEvent) => {
 
   const out = buf.slice(0, len);
   send(
-    { kind: "frame", id: m.id, buf: out, duration, view: viewRadius, error },
+    { kind: "frame", id: m.id, buf: out, duration, view: viewRadius, orbit: startAngle, error },
     [out.buffer],
   );
 });

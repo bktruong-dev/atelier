@@ -36,9 +36,77 @@ export function scaleOf(width: number, height: number, frame: Frame, cam: Camera
   return (Math.min(width, height) / 2 / frame.view) * cam.zoom;
 }
 
-export function drawFrame(ctx: CanvasRenderingContext2D, width: number, height: number, frame: Frame, cam: Camera, grid = true) {
+export interface DrawOptions {
+  grid: boolean;
+  /** A soft bloom under the strokes. Skipped on phones. */
+  glow: boolean;
+}
+
+export function drawFrame(ctx: CanvasRenderingContext2D, width: number, height: number, frame: Frame, cam: Camera, opts: DrawOptions) {
   ctx.clearRect(0, 0, width, height);
-  if (grid) drawGrid(ctx, width, height, frame, cam);
+  drawPattern(ctx, width, height, frame, cam);
+
+  if (opts.glow) {
+    // blur a copy of the pattern and add it back on top: light bleeding off the ink
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.filter = "blur(8px)";
+    ctx.globalAlpha = 0.3;
+    ctx.drawImage(ctx.canvas, 0, 0, width, height);
+    ctx.filter = "blur(2px)";
+    ctx.globalAlpha = 0.15;
+    ctx.drawImage(ctx.canvas, 0, 0, width, height);
+    ctx.restore();
+  }
+  // the grid goes underneath what is already drawn
+  if (opts.grid) {
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-over";
+    drawGrid(ctx, width, height, frame, cam);
+    ctx.restore();
+  }
+  if (!isFlat(cam)) drawGizmo(ctx, width, height, cam);
+}
+
+const isFlat = (cam: Camera) => Math.abs(cam.yaw) < 1e-6 && Math.abs(cam.pitch) < 1e-6;
+
+const AXES = [
+  { name: "x", v: [1, 0, 0], color: "232,160,122" },
+  { name: "y", v: [0, 1, 0], color: "143,211,168" },
+  { name: "z", v: [0, 0, 1], color: "134,168,255" },
+] as const;
+
+/** A small x/y/z compass in the corner while the view is rotated. */
+function drawGizmo(ctx: CanvasRenderingContext2D, width: number, height: number, cam: Camera) {
+  const rot = rotator(cam);
+  const cx = width - 46, cy = height - 46, r = 24;
+  ctx.save();
+  ctx.fillStyle = "rgba(12,13,16,0.7)";
+  ctx.strokeStyle = "rgba(232,230,225,0.12)";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 12, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.font = "500 10px 'IBM Plex Mono', monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineCap = "round";
+  ctx.lineWidth = 1.6;
+  for (const a of AXES) {
+    const p = rot(a.v[0], a.v[1], a.v[2]);
+    const x = cx + p.X * r, y = cy - p.Y * r;
+    ctx.strokeStyle = `rgba(${a.color},0.9)`;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.fillStyle = `rgb(${a.color})`;
+    ctx.fillText(a.name, cx + p.X * (r + 8), cy - p.Y * (r + 8));
+  }
+  ctx.restore();
+}
+
+function drawPattern(ctx: CanvasRenderingContext2D, width: number, height: number, frame: Frame, cam: Camera) {
   const b = frame.buf;
   const n = b.length;
   const k = scaleOf(width, height, frame, cam);
@@ -179,7 +247,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number, 
   const cx = width / 2 + cam.ox;
   const cy = height / 2 + cam.oy;
   const rot = rotator(cam);
-  const flat = Math.abs(cam.yaw) < 1e-6 && Math.abs(cam.pitch) < 1e-6;
+  const flat = isFlat(cam);
   const step = niceStep(k, 28);
   const major = step * 5;
 
@@ -220,8 +288,39 @@ function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number, 
   lines("minor");
   ctx.strokeStyle = "rgba(232,230,225,0.08)";
   lines("major");
-  ctx.strokeStyle = "rgba(134,168,255,0.35)";
-  lines("axis");
+  if (flat) {
+    ctx.strokeStyle = "rgba(134,168,255,0.35)";
+    lines("axis");
+  } else {
+    // in 3D, draw all three axes through the origin, each in its own colour
+    const L = (Math.min(width, height) / 2 / k) * 0.85;
+    ctx.font = "500 11px 'IBM Plex Mono', monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const a of AXES) {
+      const [vx, vy, vz] = a.v;
+      const end = rot(vx * L, vy * L, vz * L);
+      const ex = cx + end.X * k, ey = cy - end.Y * k;
+      const neg = rot(-vx * L, -vy * L, -vz * L);
+      const nx = cx + neg.X * k, ny = cy - neg.Y * k;
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = `rgba(${a.color},0.55)`;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(${a.color},0.25)`;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(nx, ny);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = `rgba(${a.color},0.9)`;
+      ctx.fillText(a.name, ex + (ex - cx) * 0.04, ey + (ey - cy) * 0.04);
+    }
+  }
 
   if (flat) {
     ctx.fillStyle = "rgba(141,139,134,0.75)";
