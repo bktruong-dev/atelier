@@ -12,7 +12,24 @@ Code you write yourself runs in a sandbox (a Web Worker) with time and step limi
 
 ## Run locally
 
-_Coming soon._
+Requires Node 20+.
+
+```bash
+npm install
+npm run dev
+```
+
+`npm run build` type-checks and writes the static site to `dist/`.
+
+## Project layout
+
+```
+src/
+  clock.ts          timeline clock: t moves by speed × real time
+  canvas.ts         high-DPI canvas sizing
+  patterns/         built-in patterns, each a pure function of t
+  ui/               dials and timeline controls
+```
 
 ## License
 
