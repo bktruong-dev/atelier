@@ -123,7 +123,7 @@ export function createSettingsPanel(
   thumb.className = "bg-thumb";
   const choose = document.createElement("button");
   choose.type = "button";
-  choose.textContent = "Choose image…";
+  choose.textContent = "Choose…";
   const removeImg = document.createElement("button");
   removeImg.type = "button";
   removeImg.textContent = "Remove";
@@ -148,7 +148,7 @@ export function createSettingsPanel(
     imageTools.hidden = s.background !== "image";
     thumb.style.backgroundImage = img ? `url("${img}")` : "";
     removeImg.disabled = !img;
-    choose.textContent = img ? "Change image…" : "Choose image…";
+    choose.textContent = img ? "Change…" : "Choose…";
     dim.style.setProperty("--fill", `${(s.bgDim / 0.9) * 100}%`);
   };
   const bgGroup = segmented<Background>("Background", [["dots", "Dots"], ["plain", "Plain"], ["black", "Black"], ["image", "Image"]], s.background, (v) => {

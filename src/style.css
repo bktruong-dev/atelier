@@ -25,7 +25,9 @@ body { visibility: visible; } /* boot.css hides the page until this stylesheet h
 @media (min-width: 901px) {
   html, body { overflow: clip; }
 }
-* { scrollbar-width: thin; scrollbar-color: #2e3138 transparent; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: #2e3138 transparent; }
+}
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #2e3138; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
@@ -582,3 +584,16 @@ body.cinema.bg-image .plate {
 .bg-dim input { flex: 1; }
 .set-error { margin: 0; font: 0.68rem var(--mono); color: var(--error); }
 .set-error:empty { display: none; }
+
+
+/* ================= panel polish ================= */
+/* hidden must win over display rules, or the image tools show for every background */
+.bg-picker[hidden], .bg-file[hidden] { display: none; }
+.bg-file button { white-space: nowrap; }
+
+/* the settings popover never runs off the bottom of the screen */
+.settings-panel { max-height: calc(100dvh - 6rem); overflow-y: auto; overscroll-behavior: contain; }
+
+/* the code editor: drag its bottom-right corner (the browser's grip) to make it taller */
+.editor { resize: vertical; overflow: hidden; min-height: 220px; max-height: 85vh; }
+#code::-webkit-scrollbar-corner { background: #0b0c0f; }
