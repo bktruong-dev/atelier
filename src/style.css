@@ -39,6 +39,10 @@ body {
   display: grid;
   /* only the middle row may grow or shrink; header and timeline keep their natural height */
   grid-template-rows: auto minmax(0, 1fr) auto;
+  /* Named areas pin each part to its row, so elements that browser extensions
+     inject into <body> can't push the layout into the wrong rows. */
+  grid-template-areas: "head" "stage" "time";
+  grid-auto-rows: 0;
   align-content: start;
   height: 100vh;
   height: 100dvh;
@@ -69,6 +73,7 @@ input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-o
 
 /* ---- masthead & tabs ---- */
 .masthead {
+  grid-area: head;
   display: flex; align-items: stretch; gap: 1.75rem; align-self: start; height: 4.25rem;
   padding: 0.9rem 1.5rem 0; border-bottom: 1px solid var(--line);
 }
@@ -116,6 +121,7 @@ input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-o
 
 /* ---- stage ---- */
 .stage {
+  grid-area: stage;
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 430px); gap: 1.5rem;
   padding: 1rem 1.5rem; min-height: 0;
 }
@@ -267,6 +273,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* ---- timeline ---- */
 .timeline {
+  grid-area: time;
   display: flex; align-items: center; gap: 0.55rem;
   padding: 0.65rem 1.5rem 0.8rem; border-top: 1px solid var(--line);
   font-family: var(--mono); font-size: 0.8rem; background: rgba(12, 13, 16, 0.92); backdrop-filter: blur(8px);
