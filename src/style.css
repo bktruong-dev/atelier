@@ -111,6 +111,10 @@ input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-o
 .corner.tr { top: 10px; right: 10px; border-width: 1px 1px 0 0; }
 .corner.bl { bottom: 10px; left: 10px; border-width: 0 0 1px 1px; }
 .corner.br { bottom: 10px; right: 10px; border-width: 0 1px 1px 0; }
+.coords {
+  position: absolute; left: 0.85rem; bottom: 0.7rem; font: 0.7rem var(--mono); color: var(--ink-dim);
+  pointer-events: none; letter-spacing: 0.02em;
+}
 .view-tools {
   position: absolute; right: 0.75rem; top: 0.75rem; display: flex; gap: 0.3rem;
   padding: 0.25rem; background: rgba(12, 13, 16, 0.75); border: 1px solid var(--line); border-radius: 8px;
@@ -201,12 +205,18 @@ input[type="range"]::-moz-range-thumb {
 .code { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .editor { position: relative; flex: 1; min-height: 280px; border: 1px solid var(--line); border-radius: 8px; background: #0b0c0f; overflow: hidden; }
 .editor:focus-within { border-color: rgba(134, 168, 255, 0.6); }
+.gutter {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 2.6rem; margin: 0; padding: 0.8rem 0.55rem 0.8rem 0;
+  font: 0.8rem/1.65 var(--mono); text-align: right; color: #3d4048; overflow: hidden; user-select: none;
+  border-right: 1px solid var(--ink-faint); background: rgba(255, 255, 255, 0.01);
+}
+.gutter-error { color: var(--error); font-weight: 500; }
 .code-mirror, #code {
-  position: absolute; inset: 0; margin: 0; padding: 0.8rem 0.9rem;
+  position: absolute; inset: 0 0 0 2.6rem; margin: 0; padding: 0.8rem 0.9rem 0.8rem 0.7rem;
   font: 0.8rem/1.65 var(--mono); tab-size: 2; white-space: pre; overflow: auto; border: 0;
 }
 .code-mirror { color: var(--ink-soft); pointer-events: none; overflow: hidden; }
-#code { background: transparent; color: transparent; caret-color: var(--accent); resize: none; width: 100%; height: 100%; outline: none; }
+#code { background: transparent; color: transparent; caret-color: var(--accent); resize: none; width: calc(100% - 2.6rem); height: 100%; outline: none; }
 #code::selection { background: rgba(134, 168, 255, 0.25); color: transparent; }
 .tok-comment { color: #6b6a66; font-style: italic; }
 .tok-string { color: #b5cea8; }

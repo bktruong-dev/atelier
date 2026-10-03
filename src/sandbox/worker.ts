@@ -189,7 +189,26 @@ function compile(code: string, dials: string[]) {
   } catch (err) {
     fn = null;
     compileError = errorInfo(err);
+    if (err instanceof SyntaxError && compileError.line === null) compileError.line = findSyntaxLine(code, err.message);
   }
+}
+
+/**
+ * Chrome gives no position for syntax errors in new Function. Compile
+ * growing prefixes of the code: the first one that fails with the same
+ * message (rather than "unexpected end of input") contains the bad line.
+ */
+function findSyntaxLine(code: string, message: string): number | null {
+  const lines = code.split("\n");
+  if (lines.length > 3000) return null;
+  for (let i = 1; i <= lines.length; i++) {
+    try {
+      new Function(lines.slice(0, i).join("\n"));
+    } catch (e) {
+      if (e instanceof SyntaxError && e.message === message && !/end of input/i.test(message)) return i;
+    }
+  }
+  return null;
 }
 
 listen("message", (e: MessageEvent) => {

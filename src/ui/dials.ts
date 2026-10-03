@@ -168,7 +168,13 @@ export function renderDials(root: HTMLElement, dials: Dial[], h: DialHandlers, o
       if (next === d.name) return;
       const problem = badDialName(next) ?? (dials.some((o) => o !== d && o.name === next) ? `There is already a dial called “${next}”.` : null);
       nameErr.textContent = problem ?? "";
-      if (problem) return;
+      if (problem) {
+        nameIn.addEventListener("blur", () => {
+          nameIn.value = d.name;
+          nameErr.textContent = "";
+        }, { once: true });
+        return;
+      }
       const from = d.name;
       d.name = next;
       h.onRename(d, from);

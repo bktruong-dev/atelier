@@ -3,7 +3,7 @@ import { setupCanvas } from "./canvas";
 import { Clock } from "./clock";
 import { loadNotebook, makeDial, newId, saveNotebook, type Dial, type Page } from "./notebook";
 import { BLANK, REFERENCE, type Template } from "./presets";
-import { drawFrame, fitCamera, newCamera, type Frame } from "./render";
+import { drawFrame, fitCamera, newCamera, scaleOf, type Frame } from "./render";
 import { DEFAULT_DURATION } from "./sandbox/ops";
 import { Sandbox, type FrameResult } from "./sandbox/host";
 import { decodeShare, encodeShare } from "./share";
@@ -51,7 +51,7 @@ const cam = newCamera();
 const { ctx, view } = setupCanvas(canvas, () => (needsDraw = true));
 const sandbox = new Sandbox(onFrame, onTimeout);
 
-const editor = createEditor($<HTMLTextAreaElement>("code"), $("code-mirror"), {
+const editor = createEditor($<HTMLTextAreaElement>("code"), $("code-mirror"), $("gutter"), {
   onChange(code) {
     page.code = code;
     recompile();
@@ -163,7 +163,9 @@ function renderTabs() {
 
   const index = all.indexOf(page);
   caption.textContent = `Fig. ${ROMAN[index] ?? index + 1} — ${page.name || "Untitled"}`;
-  $("duplicate").hidden = page !== refPage;
+  const dup = $("duplicate");
+  dup.textContent = page === refPage ? "Copy to notebook" : "Duplicate";
+  dup.classList.toggle("primary", page === refPage);
   $("ref-note").hidden = page !== refPage;
 }
 
@@ -185,7 +187,11 @@ nameInput.addEventListener("input", () => {
 });
 
 $("duplicate").addEventListener("click", () => {
-  const copy = addPage({ name: refPage.name, code: refPage.code, dials: refPage.dials }, `${refPage.name} study`);
+  const src = page;
+  const copy = addPage(
+    { name: src.name, code: src.code, dials: src.dials.map((d) => ({ ...d, playing: false })) },
+    src === refPage ? `${src.name} study` : `${src.name} (copy)`,
+  );
   toast(`Copied to your notebook as “${copy.name}”`);
 });
 
@@ -302,6 +308,7 @@ function showError(e: FrameResult["error"]) {
   errorLine = e?.line ?? null;
   errorBox.textContent = e ? (e.line ? `Line ${e.line} · ${e.message}` : e.message) : "";
   errorBox.disabled = !errorLine;
+  editor.markError(errorLine);
 }
 errorBox.addEventListener("click", () => errorLine && editor.goToLine(errorLine));
 
@@ -353,6 +360,19 @@ $("fit").addEventListener("click", () => {
   needsDraw = true;
 });
 $("reset-view").addEventListener("click", resetView);
+
+// Desmos-style readout of the point under the cursor (flat view only)
+const coords = $("coords");
+canvas.addEventListener("pointermove", (e) => {
+  if (!frame || cam.yaw !== 0 || cam.pitch !== 0 || e.buttons) return void (coords.textContent = "");
+  const r = canvas.getBoundingClientRect();
+  const k = scaleOf(view.width, view.height, frame, cam);
+  const x = (e.clientX - r.left - view.width / 2 - cam.ox) / k;
+  const y = -(e.clientY - r.top - view.height / 2 - cam.oy) / k;
+  const digits = Math.max(0, Math.min(6, Math.ceil(Math.log10(k / 2))));
+  coords.textContent = `(${x.toFixed(digits)}, ${y.toFixed(digits)})`;
+});
+canvas.addEventListener("pointerleave", () => (coords.textContent = ""));
 
 function resetView() {
   Object.assign(cam, newCamera());

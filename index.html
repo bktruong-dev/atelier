@@ -27,6 +27,7 @@
       <figure class="figure">
         <div class="plate">
           <canvas id="canvas" aria-label="Pattern. Drag to pan, scroll to zoom, shift-drag to rotate."></canvas>
+          <output id="coords" class="coords" aria-hidden="true"></output>
           <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
           <div class="view-tools">
             <button type="button" id="grid" aria-pressed="true" title="Show the grid">Grid</button>
@@ -41,7 +42,7 @@
       <aside class="panel">
         <div class="page-head">
           <input id="name" class="name" aria-label="Page name" maxlength="80" spellcheck="false" />
-          <button type="button" id="duplicate" class="primary" hidden>Copy to notebook</button>
+          <button type="button" id="duplicate">Duplicate</button>
         </div>
         <p id="ref-note" class="note" hidden>This is the reference page. Play with it freely; to keep your changes, copy it to your notebook.</p>
 
@@ -59,6 +60,7 @@
             <span class="hint">runs as you type · Ctrl+Enter</span>
           </div>
           <div class="editor">
+            <pre id="gutter" class="gutter" aria-hidden="true"></pre>
             <pre id="code-mirror" class="code-mirror" aria-hidden="true"></pre>
             <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Pattern code"></textarea>
           </div>
