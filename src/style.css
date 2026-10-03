@@ -37,7 +37,9 @@ body {
   color: var(--ink);
   font-family: var(--serif);
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  /* only the middle row may grow or shrink; header and timeline keep their natural height */
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: start;
   height: 100vh;
   height: 100dvh;
 }
@@ -67,7 +69,7 @@ input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-o
 
 /* ---- masthead & tabs ---- */
 .masthead {
-  display: flex; align-items: stretch; gap: 1.75rem;
+  display: flex; align-items: stretch; gap: 1.75rem; align-self: start; height: 4.25rem;
   padding: 0.9rem 1.5rem 0; border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; flex-direction: column; justify-content: center; padding-bottom: 0.65rem; flex: none; }
@@ -286,7 +288,7 @@ input[type="range"]::-moz-range-thumb {
 
 @media (max-width: 900px) {
   body { height: auto; min-height: 100vh; grid-template-rows: auto auto auto; }
-  .masthead { flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0.8rem 1rem 0; }
+  .masthead { flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0.8rem 1rem 0; height: auto; }
   .brand { flex-direction: row; align-items: baseline; gap: 0.75rem; padding-bottom: 0; }
   .tools { margin-left: auto; padding-bottom: 0; }
   .tabs { order: 3; flex-basis: 100%; }
