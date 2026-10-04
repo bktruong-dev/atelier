@@ -11,6 +11,7 @@ Open Atelier, press **+** for a new page, delete the starter code and paste any 
 | [planets-geocentric.js](planets-geocentric.js) | Every planet seen from a still Earth, with their retrograde loops. |
 | [venus-geocentric.js](venus-geocentric.js) | Venus from Earth: the five-loop "pentagram of Venus" over 8 years. |
 | [jellyfish.js](jellyfish.js) | A glowing jellyfish whose tentacles trail through where it has been. Rewind it and it swims backwards. |
+| [navier-stokes-openai-2026.js](navier-stokes-openai-2026.js) | A tracer-particle simulation of the vortex core in OpenAI's 2026 Navier–Stokes blow-up paper, using its exact scalings (core radius τ^½, height τ^(½−h), speed τ^−(½+h)) and a divergence-free model of the core's described shape. Dials for h, inflow, swirl, bias and how close to the singularity. |
 | [navier-stokes-blowup.js](navier-stokes-blowup.js) | An illustration of the swirling, collapsing vortex in OpenAI's reported 2026 Navier–Stokes blow-up construction (a model of its described shape, not the exact solution). |
 
 Best viewed with **Glow** on and in **Cinema** (press C).

@@ -597,3 +597,9 @@ body.cinema.bg-image .plate {
 /* the code editor: drag its bottom-right corner (the browser's grip) to make it taller */
 .editor { resize: vertical; overflow: hidden; min-height: 220px; max-height: 85vh; }
 #code::-webkit-scrollbar-corner { background: #0b0c0f; }
+
+/* The textarea has scrollbars (8px) and the coloured copy behind it doesn't, so give
+   the copy the same extra room: both can then scroll exactly as far, and the caret
+   stays on its letters even at the bottom or right edge. */
+.code-mirror { padding-bottom: calc(0.8rem + 8px); padding-right: calc(0.9rem + 8px); }
+.gutter { padding-bottom: calc(0.8rem + 8px); }
