@@ -22,7 +22,7 @@ view(1);
 const tilt    = dial("tilt", 84, 60, 90, 0.5);      // camera angle from the disc's axis (90 = edge on)
 const zoom    = dial("zoom", 15, 8, 40, 0.5);       // half-height of the picture, in units of M
 const doppler = dial("doppler", 0.6, 0, 1, 0.05);   // 0 like the film · 1 the full physical effect
-const spin    = dial("discSpeed", 1, 0, 4, 0.05);   // how fast the disc pattern turns (1 = real Kepler ratios)
+const spin    = dial("discSpeed", 1, 0, 4, 0.05);   // how fast the disc turns; it never stops (inner parts faster, as Kepler says)
 const res     = dial("detail", 140, 60, 240, 10);   // rows of pixels
 const dotPx   = dial("dotSize", 5, 1, 12, 0.5);     // pixel size on screen; match it to the detail
 const warmth  = dial("warmth", 0.75, 0, 1, 0.05);   // 0 the true blackbody colour · 1 a film-style orange grade
@@ -119,9 +119,11 @@ for (let j = 0; j < cache.rows.length; j++) {
       const omega = p.r ** -1.5;                                  // Kepler: Ω = r^−3/2
       const grav = sqrt(1 - 3 / p.r);                             // gravity + orbital time dilation
       const g = grav / (1 + doppler * omega * s * p.bx);          // observed / emitted frequency
-      // turbulent streaks carried round at each radius's own speed
-      const a = p.psi - spin * omega * t * 6;
-      const texture = 0.55 + 0.25 * sin(9 * log(p.r) + 3 * a) * sin(23 * log(p.r) - 2 * a) + 0.2 * sin(41 * log(p.r) + a);
+      // hot clumps and streaks, each carried round forever at its own radius's
+      // Kepler speed Ω = r^−3/2, so the inner disc laps the outer one and shears the clumps into arcs
+      const a = p.psi - spin * omega * t * 40;
+      const lr = log(p.r);
+      const texture = 0.5 + 0.22 * sin(9 * lr + 3 * a) * sin(23 * lr - 2 * a) + 0.16 * sin(41 * lr + 5 * a) + 0.12 * sin(17 * lr - 7 * a);
       const I = (flux(p.r) / peak) * g ** (3 + doppler) * texture;
       // temperature falls off as flux^(1/4); the observed colour is shifted by g
       const [R0, G0, B0] = blackbody(1500 + 3200 * clamp(g * (flux(p.r) / peak) ** 0.25, 0, 1.5));
